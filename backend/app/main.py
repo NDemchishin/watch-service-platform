@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import api_router
+from app.api.telegram import router as telegram_router
 
 # Настройка логирования
 logging.basicConfig(
@@ -35,6 +36,9 @@ app.add_middleware(
 def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+# Подключаем webhook endpoint напрямую (без префикса /api/v1)
+app.include_router(telegram_router, prefix="/webhook")
 
 # Подключаем API роутер
 app.include_router(api_router)
