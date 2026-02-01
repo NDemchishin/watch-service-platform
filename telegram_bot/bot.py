@@ -5,6 +5,7 @@
 import logging
 import asyncio
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 
 from telegram_bot.config import bot_config
@@ -43,8 +44,11 @@ async def start_polling():
     # Проверяем конфигурацию
     bot_config.validate()
     
-    # Создаем бота
-    bot = Bot(token=bot_config.TOKEN, parse_mode=ParseMode.HTML)
+    # Создаем бота с DefaultBotProperties
+    bot = Bot(
+        token=bot_config.TOKEN,
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+    )
     dp = create_dispatcher()
     
     logger.info("Starting bot in polling mode...")
@@ -65,7 +69,10 @@ def get_bot() -> Bot:
     global _bot
     if _bot is None:
         bot_config.validate()
-        _bot = Bot(token=bot_config.TOKEN, parse_mode=ParseMode.HTML)
+        _bot = Bot(
+            token=bot_config.TOKEN,
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML)
+        )
     return _bot
 
 
