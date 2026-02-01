@@ -91,7 +91,9 @@ async def setup_webhook() -> None:
         return
     
     bot = get_bot()
-    webhook_url = f"{bot_config.WEBHOOK_URL}/webhook"
+    # Убираем дублирующийся /webhook из URL
+    base_url = bot_config.WEBHOOK_URL.rstrip('/')
+    webhook_url = f"{base_url}/api/v1/telegram/webhook"
     
     await bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")

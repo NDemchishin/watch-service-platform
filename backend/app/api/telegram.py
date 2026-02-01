@@ -3,6 +3,7 @@ API endpoints для Telegram бота webhook.
 Обновлен для работы с aiogram 3.x
 """
 import logging
+import asyncio
 from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import JSONResponse
 
@@ -35,8 +36,20 @@ async def startup_event():
         
         # Настраиваем webhook если есть URL
         if bot_config.WEBHOOK_URL:
-            await setup_webhook()
-            logger.info(f"Webhook configured for URL: {bot_config.WEBHOOK_URL}")
+            # Добавляем задержку перед установкой webhook
+            await asyncio.sleep(2)
+            try:
+                await setup_webhook()
+                logger.info(f"Webhook configured for URL: {bot_config.WEBHOOK_URL}")
+            except Exception as e:
+                logger.warning(f"Could not set webhook immediately: {e}")
+                # Попробуем еще раз через 5 секунд
+                await asyncio.sleep(5)
+                try:
+                    await setup_webhook()
+                    logger.info(f"Webhook configured on retry for URL: {bot_config.WEBHOOK_URL}")
+                except Exception as e2:
+                    logger.error(f"Failed to set webhook on retry: {e2}")
         else:
             logger.warning("WEBHOOK_URL not set, webhook not configured")
         
@@ -71,13 +84,6 @@ async def telegram_webhook(request: Request) -> JSONResponse:
     Telegram отправляет обновления (сообщения, команды) на этот endpoint.
     """
     global _bot_initialized
-    
-    if not _bot_initialized:
-        logger.error("Bot not initialized, cannot process webhook")
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Bot not initialized"
-        )
     
     try:
         # Получаем данные от Telegram
