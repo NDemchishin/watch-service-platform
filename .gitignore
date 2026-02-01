@@ -33,6 +33,11 @@ env/
 .env.local
 .env.*.local
 
+# Telegram Bot tokens and secrets
+bot_token.txt
+*token*.txt
+*secret*.txt
+
 # IDE
 .vscode/
 .idea/
