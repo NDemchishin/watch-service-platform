@@ -1,11 +1,12 @@
 """
 API endpoints для Telegram бота webhook.
+Обновлен для работы с aiogram 3.x
 """
 import logging
 from fastapi import APIRouter, Request, HTTPException, status
 from fastapi.responses import JSONResponse
 
-from telegram_bot.bot import setup_webhook, process_update, get_bot_application
+from telegram_bot.bot import setup_webhook, process_update, get_bot, get_dispatcher
 from telegram_bot.config import bot_config
 
 logger = logging.getLogger(__name__)
@@ -28,12 +29,9 @@ async def startup_event():
             logger.error("TELEGRAM_BOT_TOKEN not set, bot will not be initialized")
             return
         
-        # Получаем приложение бота
-        application = get_bot_application()
-        
-        # Инициализируем приложение
-        await application.initialize()
-        logger.info("Bot application initialized")
+        # Получаем бота и диспетчер
+        bot = get_bot()
+        dp = get_dispatcher()
         
         # Настраиваем webhook если есть URL
         if bot_config.WEBHOOK_URL:
@@ -58,8 +56,8 @@ async def shutdown_event():
     if _bot_initialized:
         try:
             logger.info("Shutting down Telegram bot...")
-            application = get_bot_application()
-            await application.shutdown()
+            bot = get_bot()
+            await bot.session.close()
             logger.info("Bot shutdown completed")
         except Exception as e:
             logger.error(f"Error during bot shutdown: {e}")
@@ -98,42 +96,4 @@ async def telegram_webhook(request: Request) -> JSONResponse:
         return JSONResponse(
             content={"status": "error", "message": str(e)},
             status_code=status.HTTP_200_OK
-        )
-
-
-@router.get("/health")
-async def bot_health() -> dict:
-    """Health check endpoint для бота."""
-    global _bot_initialized
-    
-    return {
-        "bot_initialized": _bot_initialized,
-        "token_configured": bool(bot_config.TOKEN),
-        "webhook_url": bot_config.WEBHOOK_URL if bot_config.WEBHOOK_URL else None,
-    }
-
-
-@router.get("/info")
-async def bot_info() -> dict:
-    """Информация о боте (только для администраторов)."""
-    try:
-        application = get_bot_application()
-        bot = application.bot
-        
-        # Получаем информацию о боте
-        bot_info = await bot.get_me()
-        
-        return {
-            "bot_id": bot_info.id,
-            "bot_username": bot_info.username,
-            "bot_name": bot_info.first_name,
-            "can_join_groups": bot_info.can_join_groups,
-            "can_read_all_group_messages": bot_info.can_read_all_group_messages,
-            "supports_inline_queries": bot_info.supports_inline_queries,
-        }
-    except Exception as e:
-        logger.error(f"Error getting bot info: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error getting bot info: {str(e)}"
         )
