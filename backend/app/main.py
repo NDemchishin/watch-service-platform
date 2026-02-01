@@ -1,11 +1,19 @@
 """
 Главный файл FastAPI приложения.
 """
+import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.api import api_router
+
+# Настройка логирования
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO,
+)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title=settings.APP_TITLE,
@@ -30,6 +38,18 @@ def health():
 
 # Подключаем API роутер
 app.include_router(api_router)
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Действия при старте приложения."""
+    logger.info("Application startup")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Действия при остановке приложения."""
+    logger.info("Application shutdown")
 
 
 if __name__ == "__main__":

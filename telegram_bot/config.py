@@ -26,6 +26,9 @@ class BotConfig:
     # URL API бэкенда
     API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
 
+    # Порт для webhook
+    PORT: int = int(os.getenv("PORT", 8000))
+
     @classmethod
     def validate(cls) -> bool:
         """Проверяет, что все необходимые переменные окружения установлены."""
@@ -35,6 +38,11 @@ class BotConfig:
                 "Пожалуйста, создайте .env файл на основе .env.example"
             )
         return True
+
+    @classmethod
+    def is_admin(cls, user_id: int) -> bool:
+        """Проверяет, является ли пользователь администратором."""
+        return user_id in cls.ADMIN_IDS
 
 
 bot_config = BotConfig()
