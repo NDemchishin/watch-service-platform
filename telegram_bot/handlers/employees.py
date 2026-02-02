@@ -53,7 +53,7 @@ async def start_add_employee(callback: CallbackQuery, state: FSMContext) -> None
     """Начало добавления сотрудника."""
     await callback.message.edit_text(
         text="👥 Добавление сотрудника\n\n"
-             "Введите имя сотрудника:",
+             "Введите ФИО сотрудника:",
         reply_markup=get_back_keyboard("employees")
     )
     await state.set_state(Employees.enter_name)
@@ -62,12 +62,12 @@ async def start_add_employee(callback: CallbackQuery, state: FSMContext) -> None
 
 @router.message(Employees.enter_name)
 async def process_employee_name(message: Message, state: FSMContext) -> None:
-    """Обработка ввода имени сотрудника."""
+    """Обработка ввода ФИО сотрудника."""
     name = message.text.strip()
     
     if len(name) < 2:
         await message.answer(
-            text="❌ Имя слишком короткое. Введите минимум 2 символа:",
+            text="❌ ФИО слишком короткое. Введите минимум 2 символа:",
             reply_markup=get_back_keyboard("employees")
         )
         return
@@ -75,44 +75,8 @@ async def process_employee_name(message: Message, state: FSMContext) -> None:
     await state.update_data(name=name)
     
     await message.answer(
-        text=f"👥 Добавление сотрудника\n\n"
-             f"Имя: {name}\n\n"
-             "Введите Telegram ID сотрудника (опционально, или введите '-' чтобы пропустить):",
-        reply_markup=get_back_keyboard("employees")
-    )
-    await state.set_state(Employees.enter_telegram_id)
-
-
-@router.message(Employees.enter_telegram_id)
-async def process_telegram_id(message: Message, state: FSMContext) -> None:
-    """Обработка ввода Telegram ID."""
-    text = message.text.strip()
-    
-    telegram_id = None
-    telegram_username = None
-    
-    if text != "-":
-        if text.startswith("@"):
-            telegram_username = text[1:]
-            await state.update_data(telegram_username=telegram_username)
-        else:
-            try:
-                telegram_id = int(text)
-                await state.update_data(telegram_id=telegram_id)
-            except ValueError:
-                await message.answer(
-                    text="❌ Неверный формат. Введите число или '-' чтобы пропустить:",
-                    reply_markup=get_back_keyboard("employees")
-                )
-                return
-    
-    data = await state.get_data()
-    
-    await message.answer(
         text=f"👥 Подтверждение добавления сотрудника\n\n"
-             f"Имя: {data.get('name')}\n"
-             f"Telegram ID: {telegram_id or 'не указан'}\n"
-             f"Username: @{telegram_username or 'не указан'}\n\n"
+             f"ФИО: {name}\n\n"
              f"Подтвердите:",
         reply_markup=get_confirm_keyboard()
     )
@@ -127,8 +91,6 @@ async def confirm_add_employee(callback: CallbackQuery, state: FSMContext) -> No
     try:
         employee = await api_client.create_employee(
             name=data.get("name"),
-            telegram_id=data.get("telegram_id"),
-            telegram_username=data.get("telegram_username"),
         )
         
         await callback.message.edit_text(
@@ -276,18 +238,13 @@ async def view_employee(callback: CallbackQuery, state: FSMContext) -> None:
         )
         
         name = employee.get("name", "Unknown")
-        telegram_info = ""
-        if employee.get("telegram_id"):
-            telegram_info += f"\nTelegram ID: {employee.get('telegram_id')}"
-        if employee.get("telegram_username"):
-            telegram_info += f"\nUsername: @{employee.get('telegram_username')}"
         
         status = "✅ Активен" if is_active else "🚫 Неактивен"
         
         await callback.message.edit_text(
             text=f"👥 {name}\n\n"
                  f"Статус: {status}\n"
-                 f"ID: {employee_id}{telegram_info}",
+                 f"ID: {employee_id}",
             reply_markup=keyboard
         )
         await state.set_state(Employees.select_employee)

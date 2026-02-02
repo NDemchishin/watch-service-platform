@@ -3,9 +3,13 @@ HTTP клиент для взаимодействия с API бэкенда.
 Согласно ТЗ п. 12.2: бот работает ТОЛЬКО через FastAPI.
 """
 import httpx
+import logging
 from typing import Optional
 from datetime import datetime
 from telegram_bot.config import bot_config
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+
+logger = logging.getLogger(__name__)
 
 
 class APIClient:
@@ -13,12 +17,24 @@ class APIClient:
 
     def __init__(self, base_url: str = None):
         self.base_url = base_url or bot_config.API_BASE_URL
-        self.client = httpx.AsyncClient(base_url=self.base_url, timeout=30.0)
+        # Ensure URL has protocol
+        if self.base_url and not self.base_url.startswith(('http://', 'https://')):
+            self.base_url = 'https://' + self.base_url
+        self.client = httpx.AsyncClient(
+            base_url=self.base_url, 
+            timeout=30.0,
+            follow_redirects=True
+        )
 
     async def close(self):
         """Закрывает HTTP клиент."""
         await self.client.aclose()
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type((httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout))
+    )
     async def _request(
         self,
         method: str,
@@ -26,15 +42,22 @@ class APIClient:
         params: Optional[dict] = None,
         json_data: Optional[dict] = None,
     ) -> dict:
-        """Выполняет HTTP запрос к API."""
-        response = await self.client.request(
-            method=method,
-            url=f"/api/v1{endpoint}",
-            params=params,
-            json=json_data,
-        )
-        response.raise_for_status()
-        return response.json()
+        """Выполняет HTTP запрос к API с retry логикой."""
+        try:
+            response = await self.client.request(
+                method=method,
+                url=f"/api/v1{endpoint}",
+                params=params,
+                json=json_data,
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.ConnectError as e:
+            logger.error(f"Connection error to {endpoint}: {e}")
+            raise
+        except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error {e.response.status_code} on {endpoint}: {e}")
+            raise
 
     # ===== Receipts =====
     async def get_or_create_receipt(
