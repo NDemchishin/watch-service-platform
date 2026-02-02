@@ -12,6 +12,9 @@ from telegram_bot.states import History
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
 
+logger = logging.getLogger(__name__)
+router = Router()
+
 
 @router.callback_query(F.data == "menu:history")
 async def start_history(callback: CallbackQuery, state: FSMContext) -> None:
