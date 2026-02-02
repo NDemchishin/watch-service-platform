@@ -14,14 +14,18 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:urgent")
 async def show_urgent_list(callback: CallbackQuery, state: FSMContext) -> None:
     """Показывает список срочных часов."""
     try:
-        receipts = await api_client.get_urgent_receipts()
+        receipts = await get_api_client().get_urgent_receipts()
         
         if not receipts:
             await callback.message.edit_text(
@@ -84,8 +88,8 @@ async def view_urgent_receipt(callback: CallbackQuery, state: FSMContext) -> Non
     receipt_id = int(callback.data.split(":")[2])
     
     try:
-        receipt = await api_client.get_receipt(receipt_id)
-        history = await api_client.get_receipt_history(receipt_id)
+        receipt = await get_api_client().get_receipt(receipt_id)
+        history = await get_api_client().get_receipt_history(receipt_id)
         
         deadline = receipt.get("current_deadline")
         if deadline:
@@ -203,7 +207,7 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
             new_deadline = new_deadline.replace(year=now.year + 1)
         
         # Обновляем дедлайн через API
-        await api_client.update_deadline(
+        await get_api_client().update_deadline(
             receipt_id=receipt_id,
             new_deadline=new_deadline,
             telegram_id=user.id,
@@ -241,8 +245,8 @@ async def show_urgent_history(callback: CallbackQuery, state: FSMContext) -> Non
     receipt_id = int(callback.data.split(":")[2])
     
     try:
-        receipt = await api_client.get_receipt(receipt_id)
-        history = await api_client.get_receipt_history(receipt_id)
+        receipt = await get_api_client().get_receipt(receipt_id)
+        history = await get_api_client().get_receipt_history(receipt_id)
         
         receipt_number = receipt.get("receipt_number", "Unknown")
         

@@ -13,7 +13,11 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:otk")
@@ -45,7 +49,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
     
     try:
         # Пытаемся получить или создать квитанцию
-        receipt = await api_client.get_or_create_receipt(
+        receipt = await get_api_client().get_or_create_receipt(
             receipt_number=receipt_number,
             telegram_id=user.id,
             telegram_username=user.username,
@@ -96,7 +100,7 @@ async def pass_otk(callback: CallbackQuery, state: FSMContext) -> None:
     
     try:
         # Отмечаем прохождение ОТК
-        await api_client.otk_pass(
+        await get_api_client().otk_pass(
             receipt_id=receipt_id,
             telegram_id=user.id,
             telegram_username=user.username,
@@ -163,7 +167,7 @@ async def confirm_return(callback: CallbackQuery, state: FSMContext) -> None:
     
     try:
         # Инициируем возврат (заглушка)
-        await api_client.initiate_return(
+        await get_api_client().initiate_return(
             receipt_id=receipt_id,
             telegram_id=user.id,
             telegram_username=user.username,

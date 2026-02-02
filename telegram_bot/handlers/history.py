@@ -14,7 +14,11 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:history")
@@ -44,7 +48,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
     
     try:
         # Ищем квитанцию по номеру
-        receipt = await api_client.get_receipt_by_number(receipt_number)
+        receipt = await get_api_client().get_receipt_by_number(receipt_number)
         receipt_id = receipt.get("id")
         
         await state.update_data(
@@ -53,7 +57,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         
         # Получаем историю
-        history = await api_client.get_receipt_history(receipt_id)
+        history = await get_api_client().get_receipt_history(receipt_id)
         
         await show_history(message, state, receipt, history)
         
@@ -204,7 +208,7 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
         if new_deadline < now:
             new_deadline = new_deadline.replace(year=now.year + 1)
         
-        await api_client.update_deadline(
+        await get_api_client().update_deadline(
             receipt_id=receipt_id,
             new_deadline=new_deadline,
             telegram_id=user.id,
@@ -243,7 +247,7 @@ async def start_change_master(callback: CallbackQuery, state: FSMContext) -> Non
     receipt_id = data.get("receipt_id")
     
     try:
-        employees = await api_client.get_employees(active_only=True)
+        employees = await get_api_client().get_employees(active_only=True)
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
@@ -287,7 +291,7 @@ async def change_master(callback: CallbackQuery, state: FSMContext) -> None:
     
     try:
         # Создаём событие истории о смене мастера
-        await api_client.add_history_event(
+        await get_api_client().add_history_event(
             receipt_id=receipt_id,
             event_type="master_changed",
             payload={"new_master_id": new_master_id},
@@ -341,7 +345,7 @@ async def process_comment(message: Message, state: FSMContext) -> None:
         return
     
     try:
-        await api_client.add_history_event(
+        await get_api_client().add_history_event(
             receipt_id=receipt_id,
             event_type="comment_added",
             payload={"comment": comment},

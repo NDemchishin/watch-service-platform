@@ -14,7 +14,11 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:master")
@@ -46,7 +50,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
     
     try:
         # Пытаемся получить или создать квитанцию
-        receipt = await api_client.get_or_create_receipt(
+        receipt = await get_api_client().get_or_create_receipt(
             receipt_number=receipt_number,
             telegram_id=user.id,
             telegram_username=user.username,
@@ -58,7 +62,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         
         # Получаем список активных сотрудников (мастеров)
-        employees = await api_client.get_employees(active_only=True)
+        employees = await get_api_client().get_employees(active_only=True)
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
@@ -240,7 +244,7 @@ async def confirm_assign_to_master(callback: CallbackQuery, state: FSMContext) -
         deadline = data.get("deadline")
         
         # Выдаём часы мастеру
-        result = await api_client.assign_to_master(
+        result = await get_api_client().assign_to_master(
             receipt_id=receipt_id,
             master_id=master_id,
             is_urgent=is_urgent,

@@ -13,7 +13,11 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:employees")
@@ -89,7 +93,7 @@ async def confirm_add_employee(callback: CallbackQuery, state: FSMContext) -> No
     data = await state.get_data()
     
     try:
-        employee = await api_client.create_employee(
+        employee = await get_api_client().create_employee(
             name=data.get("name"),
         )
         
@@ -116,7 +120,7 @@ async def confirm_add_employee(callback: CallbackQuery, state: FSMContext) -> No
 async def list_all_employees(callback: CallbackQuery, state: FSMContext) -> None:
     """Показывает всех сотрудников."""
     try:
-        employees = await api_client.get_all_employees()
+        employees = await get_api_client().get_all_employees()
         
         if not employees:
             await callback.message.edit_text(
@@ -166,7 +170,7 @@ async def list_all_employees(callback: CallbackQuery, state: FSMContext) -> None
 async def list_inactive_employees(callback: CallbackQuery, state: FSMContext) -> None:
     """Показывает неактивных сотрудников."""
     try:
-        employees = await api_client.get_inactive_employees()
+        employees = await get_api_client().get_inactive_employees()
         
         if not employees:
             await callback.message.edit_text(
@@ -217,7 +221,7 @@ async def view_employee(callback: CallbackQuery, state: FSMContext) -> None:
     employee_id = int(callback.data.split(":")[2])
     
     try:
-        employee = await api_client.get_employee(employee_id)
+        employee = await get_api_client().get_employee(employee_id)
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
@@ -265,7 +269,7 @@ async def activate_employee(callback: CallbackQuery, state: FSMContext) -> None:
     employee_id = int(callback.data.split(":")[2])
     
     try:
-        employee = await api_client.activate_employee(employee_id)
+        employee = await get_api_client().activate_employee(employee_id)
         
         await callback.message.edit_text(
             text=f"✅ Сотрудник {employee.get('name')} активирован!",
@@ -290,7 +294,7 @@ async def deactivate_employee(callback: CallbackQuery, state: FSMContext) -> Non
     employee_id = int(callback.data.split(":")[2])
     
     try:
-        employee = await api_client.deactivate_employee(employee_id)
+        employee = await get_api_client().deactivate_employee(employee_id)
         
         await callback.message.edit_text(
             text=f"🚫 Сотрудник {employee.get('name')} деактивирован!",

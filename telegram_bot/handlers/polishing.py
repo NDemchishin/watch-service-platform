@@ -13,7 +13,11 @@ from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
 router = Router()
-api_client = APIClient()
+
+
+def get_api_client() -> APIClient:
+    """Ленивое создание API клиента."""
+    return APIClient()
 
 
 @router.callback_query(F.data == "menu:polishing")
@@ -45,7 +49,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
     
     try:
         # Пытаемся получить или создать квитанцию
-        receipt = await api_client.get_or_create_receipt(
+        receipt = await get_api_client().get_or_create_receipt(
             receipt_number=receipt_number,
             telegram_id=user.id,
             telegram_username=user.username,
@@ -57,7 +61,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         
         # Получаем список полировщиков
-        employees = await api_client.get_employees(active_only=True)
+        employees = await get_api_client().get_employees(active_only=True)
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
@@ -216,7 +220,7 @@ async def confirm_polishing(callback: CallbackQuery, state: FSMContext) -> None:
     
     try:
         # Создаем запись о полировке через API
-        polishing = await api_client.create_polishing(
+        polishing = await get_api_client().create_polishing(
             receipt_id=data.get("receipt_id"),
             polisher_id=data.get("polisher_id"),
             metal_type=data.get("metal_type"),
