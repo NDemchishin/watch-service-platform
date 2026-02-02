@@ -98,6 +98,10 @@ async def setup_webhook() -> None:
     
     bot = get_bot()
     base_url = bot_config.WEBHOOK_URL.rstrip('/')
+    # Remove /webhook suffix if present to avoid duplication
+    if base_url.endswith('/webhook'):
+        base_url = base_url[:-8]
+    # Route is: /webhook/telegram/webhook
     webhook_url = f"{base_url}/webhook/telegram/webhook"
     
     await bot.set_webhook(url=webhook_url)
