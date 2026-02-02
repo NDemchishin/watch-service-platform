@@ -14,23 +14,44 @@ logger = logging.getLogger(__name__)
 
 class APIClient:
     """Клиент для работы с API бэкенда."""
-
+    
+    _instance = None
+    _client: Optional[httpx.AsyncClient] = None
+    
+    def __new__(cls, base_url: str = None):
+        """Singleton pattern для предотвращения создания множественных соединений."""
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+    
     def __init__(self, base_url: str = None):
-        self.base_url = base_url or bot_config.get_api_base_url()
-        # Ensure URL has protocol
-        if self.base_url and not self.base_url.startswith(('http://', 'https://')):
-            self.base_url = 'http://' + self.base_url
-        self.client = httpx.AsyncClient(
-            base_url=self.base_url, 
-            timeout=30.0,
-            follow_redirects=True
-        )
-        logger.info(f"API client initialized with base URL: {self.base_url}")
-
+        """Инициализация клиента."""
+        if not hasattr(self, '_initialized'):
+            self.base_url = base_url or bot_config.get_api_base_url()
+            # Ensure URL has protocol
+            if self.base_url and not self.base_url.startswith(('http://', 'https://')):
+                self.base_url = 'http://' + self.base_url
+            logger.info(f"API client initialized with base URL: {self.base_url}")
+            self._initialized = True
+    
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Получает или создаёт HTTP клиент."""
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(
+                base_url=self.base_url, 
+                timeout=30.0,
+                follow_redirects=True
+            )
+            logger.debug("Created new HTTP client")
+        return self._client
+    
     async def close(self):
         """Закрывает HTTP клиент."""
-        await self.client.aclose()
-
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
+            logger.debug("HTTP client closed")
+            self._client = None
+    
     async def _request(
         self,
         method: str,
@@ -41,10 +62,16 @@ class APIClient:
         """Выполняет HTTP запрос к API с retry логикой."""
         # Remove trailing slash from endpoint to avoid redirect issues
         endpoint = endpoint.rstrip('/')
+        
+        client = await self._get_client()
+        
         try:
-            response = await self.client.request(
+            url = f"/api/v1{endpoint}"
+            logger.debug(f"Making {method} request to {url}")
+            
+            response = await client.request(
                 method=method,
-                url=f"/api/v1{endpoint}",
+                url=url,
                 params=params,
                 json=json_data,
             )
@@ -54,7 +81,10 @@ class APIClient:
             logger.error(f"Connection error to {endpoint}: {e}")
             raise
         except httpx.HTTPStatusError as e:
-            logger.error(f"HTTP error {e.response.status_code} on {endpoint}: {e}")
+            logger.error(f"HTTP error {e.response.status_code} on {endpoint}: {e.response.text if e.response else e}")
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error on {endpoint}: {e}")
             raise
 
     # ===== Receipts =====
@@ -357,3 +387,23 @@ class APIClient:
                 "telegram_username": telegram_username,
             }
         )
+
+
+# Глобальный экземпляр клиента
+_api_client: Optional[APIClient] = None
+
+
+def get_api_client() -> APIClient:
+    """Получает глобальный экземпляр API клиента."""
+    global _api_client
+    if _api_client is None:
+        _api_client = APIClient()
+    return _api_client
+
+
+async def close_api_client():
+    """Закрывает глобальный API клиент."""
+    global _api_client
+    if _api_client:
+        await _api_client.close()
+        _api_client = None

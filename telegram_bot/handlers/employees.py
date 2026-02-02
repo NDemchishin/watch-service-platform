@@ -9,15 +9,7 @@ from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import Employees
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
-from telegram_bot.services.api_client import APIClient
-
-logger = logging.getLogger(__name__)
-router = Router()
-
-
-def get_api_client() -> APIClient:
-    """Ленивое создание API клиента."""
-    return APIClient()
+from telegram_bot.services.api_client import get_api_client
 
 
 @router.callback_query(F.data == "menu:employees")
