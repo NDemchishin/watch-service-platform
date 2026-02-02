@@ -16,15 +16,16 @@ class APIClient:
     """Клиент для работы с API бэкенда."""
 
     def __init__(self, base_url: str = None):
-        self.base_url = base_url or bot_config.API_BASE_URL
+        self.base_url = base_url or bot_config.get_api_base_url()
         # Ensure URL has protocol
         if self.base_url and not self.base_url.startswith(('http://', 'https://')):
-            self.base_url = 'https://' + self.base_url
+            self.base_url = 'http://' + self.base_url
         self.client = httpx.AsyncClient(
             base_url=self.base_url, 
             timeout=30.0,
             follow_redirects=True
         )
+        logger.info(f"API client initialized with base URL: {self.base_url}")
 
     async def close(self):
         """Закрывает HTTP клиент."""

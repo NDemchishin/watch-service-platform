@@ -24,7 +24,16 @@ class BotConfig:
     ]
 
     # URL API бэкенда
-    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
+    # Если не установлен, используем localhost (для Railway где бот и бэкенд в одном контейнере)
+    API_BASE_URL: str = os.getenv("API_BASE_URL", "")
+    
+    @classmethod
+    def get_api_base_url(cls) -> str:
+        """Получает URL API бэкенда."""
+        if cls.API_BASE_URL:
+            return cls.API_BASE_URL
+        # По умолчанию localhost (для Railway где бот и бэкенд в одном контейнере)
+        return "http://localhost:8000"
 
     # Порт для webhook
     PORT: int = int(os.getenv("PORT", 8000))
