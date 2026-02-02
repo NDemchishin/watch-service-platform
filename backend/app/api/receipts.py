@@ -98,7 +98,7 @@ def get_or_create_receipt(
     # Пробуем найти существующую
     existing = service.get_by_number(data.receipt_number)
     if existing:
-        return ReceiptResponse.model_validate(existing)
+        return ReceiptResponse.model_validate(existing).model_dump()
     
     # Создаём новую
     try:
@@ -113,7 +113,7 @@ def get_or_create_receipt(
             detail=str(e),
         )
     
-    return ReceiptResponse.model_validate(receipt)
+    return ReceiptResponse.model_validate(receipt).model_dump()
 
 
 @router.get("/{receipt_id}/history", response_model=ReceiptWithHistoryResponse)
