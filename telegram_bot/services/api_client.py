@@ -127,7 +127,8 @@ class APIClient:
 
     async def get_urgent_receipts(self) -> list[dict]:
         """Получает список срочных часов (с дедлайном, не прошедших ОТК)."""
-        return await self._request("GET", "/receipts/urgent")
+        response = await self._request("GET", "/receipts/urgent")
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def create_receipt(self, receipt_number: str) -> dict:
         """Создает новую квитанцию."""
@@ -367,10 +368,11 @@ class APIClient:
     # ===== History =====
     async def get_receipt_history(self, receipt_id: int) -> list[dict]:
         """Получает историю квитанции."""
-        return await self._request(
+        response = await self._request(
             "GET",
             f"/history/receipt/{receipt_id}"
         )
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def add_history_event(
         self,
