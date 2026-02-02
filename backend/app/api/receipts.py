@@ -14,6 +14,7 @@ from app.schemas.receipt import (
     ReceiptResponse,
     ReceiptListResponse,
     ReceiptWithHistoryResponse,
+    ReceiptGetOrCreate,
 )
 from app.schemas.history import HistoryEventResponse, HistoryEventCreate
 from app.services.receipt_service import ReceiptService
@@ -85,9 +86,7 @@ def get_receipt_by_number(receipt_number: str, db: Session = Depends(get_db)):
 
 @router.post("/get-or-create", response_model=ReceiptResponse)
 def get_or_create_receipt(
-    receipt_number: str,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
+    data: ReceiptGetOrCreate,
     db: Session = Depends(get_db),
 ):
     """
@@ -97,16 +96,16 @@ def get_or_create_receipt(
     service = ReceiptService(db)
     
     # Пробуем найти существующую
-    existing = service.get_by_number(receipt_number)
+    existing = service.get_by_number(data.receipt_number)
     if existing:
         return ReceiptResponse.model_validate(existing)
     
     # Создаём новую
     try:
         receipt = service.create(
-            data=ReceiptCreate(receipt_number=receipt_number),
-            telegram_id=telegram_id,
-            telegram_username=telegram_username,
+            data=ReceiptCreate(receipt_number=data.receipt_number),
+            telegram_id=data.telegram_id,
+            telegram_username=data.telegram_username,
         )
     except ValueError as e:
         raise HTTPException(

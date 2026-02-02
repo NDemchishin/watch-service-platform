@@ -21,6 +21,13 @@ class ReceiptCreate(ReceiptBase):
     pass
 
 
+class ReceiptGetOrCreate(BaseModel):
+    """Схема для получения или создания квитанции через API."""
+    receipt_number: str
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
+
+
 class ReceiptUpdate(BaseModel):
     """Схема обновления квитанции (смена дедлайна)."""
     current_deadline: Optional[datetime] = None
