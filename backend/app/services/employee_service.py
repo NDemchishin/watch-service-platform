@@ -45,6 +45,17 @@ class EmployeeService:
             .all()
         )
     
+    def get_inactive(self, skip: int = 0, limit: int = 100) -> list[Employee]:
+        """Получить список неактивных сотрудников."""
+        return (
+            self.db.query(Employee)
+            .filter(Employee.is_active == False)
+            .order_by(desc(Employee.created_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+    
     def create(self, data: EmployeeCreate) -> Employee:
         """Создать нового сотрудника."""
         employee = Employee(
@@ -72,6 +83,13 @@ class EmployeeService:
     def deactivate(self, employee: Employee) -> Employee:
         """Деактивировать сотрудника (вместо удаления)."""
         employee.is_active = False
+        self.db.commit()
+        self.db.refresh(employee)
+        return employee
+    
+    def activate(self, employee: Employee) -> Employee:
+        """Активировать сотрудника."""
+        employee.is_active = True
         self.db.commit()
         self.db.refresh(employee)
         return employee

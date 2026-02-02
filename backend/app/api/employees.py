@@ -21,12 +21,15 @@ def list_employees(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
     active_only: bool = Query(False),
+    inactive_only: bool = Query(False),
     db: Session = Depends(get_db),
 ):
     """Получить список сотрудников."""
     service = EmployeeService(db)
     
-    if active_only:
+    if inactive_only:
+        employees = service.get_inactive(skip=skip, limit=limit)
+    elif active_only:
         employees = service.get_active(skip=skip, limit=limit)
     else:
         employees = service.get_all(skip=skip, limit=limit)
@@ -109,3 +112,19 @@ def deactivate_employee(employee_id: int, db: Session = Depends(get_db)):
     
     deactivated = service.deactivate(employee)
     return EmployeeResponse.model_validate(deactivated)
+
+
+@router.post("/{employee_id}/activate", response_model=EmployeeResponse)
+def activate_employee(employee_id: int, db: Session = Depends(get_db)):
+    """Активировать сотрудника."""
+    service = EmployeeService(db)
+    employee = service.get_by_id(employee_id)
+    
+    if not employee:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Сотрудник с ID {employee_id} не найден",
+        )
+    
+    activated = service.activate(employee)
+    return EmployeeResponse.model_validate(activated)

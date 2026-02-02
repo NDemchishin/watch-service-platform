@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import MainMenu
 from telegram_bot.keyboards.main_menu import get_main_menu_keyboard
+from telegram_bot.config import bot_config
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -22,6 +23,15 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
     Показывает главное меню согласно ТЗ п. 10.2.
     """
     user = message.from_user
+    
+    # Проверка авторизации (whitelist)
+    if not bot_config.is_allowed(user.id):
+        logger.warning(f"User {user.id} ({user.username}) tried to access bot but is not in whitelist")
+        await message.answer(
+            text="❌ Доступ запрещён.\n\nВаш Telegram ID не найден в списке разрешённых пользователей."
+        )
+        return
+    
     logger.info(f"User {user.id} ({user.username}) started the bot")
     
     welcome_text = (
@@ -40,6 +50,16 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
 @router.callback_query(F.data == "menu:main")
 async def show_main_menu(callback: CallbackQuery, state: FSMContext) -> None:
     """Показать главное меню (редактирование сообщения)."""
+    user = callback.from_user
+    
+    # Проверка авторизации (whitelist)
+    if not bot_config.is_allowed(user.id):
+        await callback.message.edit_text(
+            text="❌ Доступ запрещён.\n\nВаш Telegram ID не найден в списке разрешённых пользователей."
+        )
+        await callback.answer()
+        return
+    
     await callback.message.edit_text(
         text="Выберите действие:",
         reply_markup=get_main_menu_keyboard()

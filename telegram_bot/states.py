@@ -10,18 +10,13 @@ class MainMenu(StatesGroup):
     main = State()
 
 
-class NewReceipt(StatesGroup):
-    """Создание новой квитанции."""
-    waiting_for_number = State()
-    confirm_creation = State()
-
-
-class Operations(StatesGroup):
-    """Операции с квитанцией."""
+class Master(StatesGroup):
+    """Выдача часов мастеру."""
     waiting_for_receipt_number = State()
-    select_operation_type = State()
-    select_employee = State()
-    confirm_operation = State()
+    select_master = State()
+    is_urgent = State()
+    enter_deadline = State()
+    confirm = State()
 
 
 class Polishing(StatesGroup):
@@ -32,7 +27,7 @@ class Polishing(StatesGroup):
     has_bracelet = State()
     is_complex = State()
     enter_comment = State()
-    confirm_polishing = State()
+    confirm = State()
 
 
 class OTK(StatesGroup):
@@ -45,7 +40,31 @@ class OTK(StatesGroup):
     confirm_return = State()
 
 
+class Urgent(StatesGroup):
+    """Срочные часы."""
+    list = State()
+    select_receipt = State()
+    change_deadline = State()
+
+
 class History(StatesGroup):
     """История по квитанции."""
     waiting_for_receipt_number = State()
     show_history = State()
+    select_action = State()  # изменить срок, сменить мастера, добавить комментарий
+    enter_new_deadline = State()
+    select_new_master = State()
+    enter_comment = State()
+
+
+class Employees(StatesGroup):
+    """Управление сотрудниками."""
+    main_menu = State()
+    add_employee = State()
+    enter_name = State()
+    enter_telegram_id = State()
+    list_all = State()
+    list_inactive = State()
+    select_employee = State()
+    confirm_activate = State()
+    confirm_deactivate = State()

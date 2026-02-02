@@ -36,6 +36,38 @@ class ReceiptService:
             .all()
         )
     
+    def get_urgent(self) -> list[Receipt]:
+        """
+        Получить список срочных часов.
+        Согласно ТЗ Sprint 3: только часы с current_deadline, не прошедшие ОТК.
+        """
+        from app.models.history import HistoryEvent
+        
+        # Находим квитанции с дедлайном
+        urgent_receipts = (
+            self.db.query(Receipt)
+            .filter(Receipt.current_deadline.isnot(None))
+            .order_by(Receipt.current_deadline)
+            .all()
+        )
+        
+        # Фильтруем: не прошедшие ОТК
+        result = []
+        for receipt in urgent_receipts:
+            # Проверяем, есть ли событие passed_otk
+            has_otk = (
+                self.db.query(HistoryEvent)
+                .filter(
+                    HistoryEvent.receipt_id == receipt.id,
+                    HistoryEvent.event_type == "passed_otk"
+                )
+                .first()
+            )
+            if not has_otk:
+                result.append(receipt)
+        
+        return result
+    
     def create(
         self,
         data: ReceiptCreate,

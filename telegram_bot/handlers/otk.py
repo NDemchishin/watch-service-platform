@@ -1,6 +1,6 @@
 """
 Обработчики для ОТК.
-Согласно ТЗ п. 7: ОТК и возвраты.
+Согласно ТЗ Sprint 3: ОТК-проверка с кнопками "Часы готовы" и "Оформить возврат".
 """
 import logging
 from aiogram import Router, F
@@ -8,7 +8,7 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import OTK
-from telegram_bot.keyboards.main_menu import get_back_keyboard, get_confirm_keyboard
+from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import APIClient
 
 logger = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ api_client = APIClient()
 async def start_otk(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало работы с ОТК."""
     await callback.message.edit_text(
-        text="🔍 ОТК\n\n"
+        text="🔍 ОТК-проверка\n\n"
              "Введите номер квитанции:",
         reply_markup=get_back_keyboard("main")
     )
@@ -41,12 +41,19 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         return
     
+    user = message.from_user
+    
     try:
-        receipt = await api_client.get_receipt_by_number(receipt_number)
+        # Пытаемся получить или создать квитанцию
+        receipt = await api_client.get_or_create_receipt(
+            receipt_number=receipt_number,
+            telegram_id=user.id,
+            telegram_username=user.username,
+        )
         
         await state.update_data(
             receipt_id=receipt.get("id"),
-            receipt_number=receipt_number
+            receipt_number=receipt_number,
         )
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
@@ -54,13 +61,11 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton(text="📋 Просмотр истории", callback_data="otk:history"),
+                    InlineKeyboardButton(text="✅ Часы готовы", callback_data="otk:pass"),
+                    InlineKeyboardButton(text="🔁 Оформить возврат", callback_data="otk:return"),
                 ],
                 [
-                    InlineKeyboardButton(text="↩️ Оформить возврат", callback_data="otk:return"),
-                ],
-                [
-                    InlineKeyboardButton(text="◀️ Назад", callback_data="back:main"),
+                    InlineKeyboardButton(text="⬅ Назад", callback_data="back:otk"),
                 ],
             ]
         )
@@ -73,43 +78,42 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         await state.set_state(OTK.select_action)
         
     except Exception as e:
-        logger.error(f"Error finding receipt: {e}")
+        logger.error(f"Error with receipt: {e}")
         await message.answer(
-            text=f"❌ Квитанция №{receipt_number} не найдена.\n\n"
-                 f"Проверьте номер и попробуйте снова:",
+            text=f"❌ Ошибка при работе с квитанцией №{receipt_number}.\n\n"
+                 f"Попробуйте снова:",
             reply_markup=get_back_keyboard("main")
         )
 
 
-@router.callback_query(OTK.select_action, F.data == "otk:history")
-async def show_history(callback: CallbackQuery, state: FSMContext) -> None:
-    """Показать историю квитанции."""
+@router.callback_query(OTK.select_action, F.data == "otk:pass")
+async def pass_otk(callback: CallbackQuery, state: FSMContext) -> None:
+    """Часы прошли ОТК."""
     data = await state.get_data()
-    receipt_number = data.get("receipt_number")
     receipt_id = data.get("receipt_id")
+    receipt_number = data.get("receipt_number")
+    user = callback.from_user
     
     try:
-        history = await api_client.get_receipt_history(receipt_id)
-        
-        if not history:
-            message_text = f"📜 История квитанции №{receipt_number}\n\nИстория пуста."
-        else:
-            message_text = f"📜 История квитанции №{receipt_number}\n\n"
-            for event in history:
-                event_type = event.get("event_type", "unknown")
-                created_at = event.get("created_at", "")
-                message_text += f"• {event_type} - {created_at}\n"
-        
-        await callback.message.edit_text(
-            text=message_text,
-            reply_markup=get_back_keyboard("main")
+        # Отмечаем прохождение ОТК
+        await api_client.otk_pass(
+            receipt_id=receipt_id,
+            telegram_id=user.id,
+            telegram_username=user.username,
         )
         
-    except Exception as e:
-        logger.error(f"Error fetching history: {e}")
         await callback.message.edit_text(
-            text="❌ Ошибка при получении истории.",
-            reply_markup=get_back_keyboard("main")
+            text=f"✅ Квитанция №{receipt_number}\n\n"
+                 f"Часы успешно прошли ОТК!",
+            reply_markup=get_back_home_keyboard("main")
+        )
+        logger.info(f"Receipt {receipt_id} passed OTK")
+        
+    except Exception as e:
+        logger.error(f"Error passing OTK: {e}")
+        await callback.message.edit_text(
+            text="❌ Ошибка при отметке ОТК.",
+            reply_markup=get_back_home_keyboard("main")
         )
     
     await state.clear()
@@ -117,116 +121,32 @@ async def show_history(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(OTK.select_action, F.data == "otk:return")
-async def start_return(callback: CallbackQuery, state: FSMContext) -> None:
-    """Начало оформления возврата."""
-    # Получаем причины возврата
-    try:
-        reasons = await api_client.get_return_reasons()
-        
-        from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        
-        buttons = []
-        for reason in reasons:
-            buttons.append([
-                InlineKeyboardButton(
-                    text=reason.get("name", "Unknown"),
-                    callback_data=f"reason:{reason.get('id')}"
-                )
-            ])
-        
-        buttons.append([InlineKeyboardButton(text="◀️ Назад", callback_data="menu:otk")])
-        
-        keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        
-        await callback.message.edit_text(
-            text="↩️ Оформление возврата\n\n"
-                 "Выберите причину возврата:",
-            reply_markup=keyboard
-        )
-        await state.set_state(OTK.select_return_reasons)
-        
-    except Exception as e:
-        logger.error(f"Error fetching return reasons: {e}")
-        await callback.message.edit_text(
-            text="❌ Ошибка при получении причин возврата.",
-            reply_markup=get_back_keyboard("main")
-        )
-    
-    await callback.answer()
-
-
-@router.callback_query(OTK.select_return_reasons, F.data.startswith("reason:"))
-async def select_return_reason(callback: CallbackQuery, state: FSMContext) -> None:
-    """Выбор причины возврата."""
-    reason_id = int(callback.data.split(":")[1])
-    
-    # Получаем информацию о причине
-    try:
-        reasons = await api_client.get_return_reasons()
-        selected_reason = next((r for r in reasons if r.get("id") == reason_id), None)
-        
-        await state.update_data(
-            reason_id=reason_id,
-            reason_name=selected_reason.get("name", "Unknown")
-        )
-        
-        # Если причина = полировка, спрашиваем кто виноват
-        if selected_reason and "полировка" in selected_reason.get("name", "").lower():
-            from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-            
-            keyboard = InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [
-                        InlineKeyboardButton(text="Полировщик", callback_data="resp:polisher"),
-                        InlineKeyboardButton(text="Сборщик", callback_data="resp:assembler"),
-                    ],
-                    [
-                        InlineKeyboardButton(text="◀️ Назад", callback_data="menu:otk"),
-                    ],
-                ]
-            )
-            
-            await callback.message.edit_text(
-                text="↩️ Кто несет ответственность?",
-                reply_markup=keyboard
-            )
-            await state.set_state(OTK.select_responsible)
-        else:
-            # Для других причин сразу подтверждаем
-            data = await state.get_data()
-            await callback.message.edit_text(
-                text=f"↩️ Подтверждение возврата\n\n"
-                     f"Квитанция: №{data.get('receipt_number')}\n"
-                     f"Причина: {selected_reason.get('name', 'Unknown')}\n\n"
-                     f"Подтвердите:",
-                reply_markup=get_confirm_keyboard()
-            )
-            await state.set_state(OTK.confirm_return)
-        
-    except Exception as e:
-        logger.error(f"Error processing return reason: {e}")
-        await callback.message.edit_text(
-            text="❌ Ошибка при обработке причины возврата.",
-            reply_markup=get_back_keyboard("main")
-        )
-    
-    await callback.answer()
-
-
-@router.callback_query(OTK.select_responsible, F.data.startswith("resp:"))
-async def select_responsible(callback: CallbackQuery, state: FSMContext) -> None:
-    """Выбор ответственного (для полировки)."""
-    responsible = callback.data.split(":")[1]  # polisher или assembler
-    await state.update_data(responsible=responsible)
-    
+async def initiate_return(callback: CallbackQuery, state: FSMContext) -> None:
+    """Инициирует возврат (заглушка для Sprint 3)."""
     data = await state.get_data()
+    receipt_id = data.get("receipt_id")
+    receipt_number = data.get("receipt_number")
+    user = callback.from_user
+    
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+    
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="🔁 Оформить возврат", callback_data="otk:return:confirm"),
+            ],
+            [
+                InlineKeyboardButton(text="⬅ Назад", callback_data="back:otk"),
+            ],
+        ]
+    )
     
     await callback.message.edit_text(
-        text=f"↩️ Подтверждение возврата\n\n"
-             f"Квитанция: №{data.get('receipt_number')}\n"
-             f"Причина: {data.get('reason_name')}\n"
-             f"Ответственный: {'Полировщик' if responsible == 'polisher' else 'Сборщик'}\n\n"
-             f"Подтвердите:",
+        text=f"🔁 Квитанция №{receipt_number}\n\n"
+             f"Оформление возврата (Sprint 3 - заглушка)\n\n"
+             f"Будет создано событие 'return_initiated'.\n"
+             f"Полная логика возвратов - Sprint 4.\n\n"
+             f"Продолжить?",
         reply_markup=get_confirm_keyboard()
     )
     await state.set_state(OTK.confirm_return)
@@ -237,27 +157,38 @@ async def select_responsible(callback: CallbackQuery, state: FSMContext) -> None
 async def confirm_return(callback: CallbackQuery, state: FSMContext) -> None:
     """Подтверждение возврата."""
     data = await state.get_data()
+    receipt_id = data.get("receipt_id")
+    receipt_number = data.get("receipt_number")
+    user = callback.from_user
     
     try:
-        # Создаем возврат через API
-        return_data = await api_client.create_return(
-            receipt_id=data.get("receipt_id"),
-            reason_id=data.get("reason_id"),
-            responsible=data.get("responsible")
+        # Инициируем возврат (заглушка)
+        await api_client.initiate_return(
+            receipt_id=receipt_id,
+            telegram_id=user.id,
+            telegram_username=user.username,
         )
         
         await callback.message.edit_text(
-            text="✅ Возврат успешно оформлен!",
-            reply_markup=get_back_keyboard("main")
+            text=f"🔁 Квитанция №{receipt_number}\n\n"
+                 f"Возврат инициирован!\n\n"
+                 f"Полная логика возвратов будет реализована в Sprint 4.",
+            reply_markup=get_back_home_keyboard("main")
         )
-        logger.info(f"Return created: {return_data}")
+        logger.info(f"Return initiated for receipt {receipt_id}")
         
     except Exception as e:
-        logger.error(f"Error creating return: {e}")
+        logger.error(f"Error initiating return: {e}")
         await callback.message.edit_text(
             text="❌ Ошибка при оформлении возврата.",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
     
     await state.clear()
     await callback.answer()
+
+
+@router.callback_query(F.data == "back:otk")
+async def back_to_otk(callback: CallbackQuery, state: FSMContext) -> None:
+    """Возврат к началу ОТК."""
+    await start_otk(callback, state)

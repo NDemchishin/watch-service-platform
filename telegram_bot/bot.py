@@ -12,7 +12,7 @@ from telegram_bot.config import bot_config
 from telegram_bot.states import MainMenu
 
 # Импорт роутеров
-from telegram_bot.handlers import menu, new_receipt, operations, polishing, otk, history
+from telegram_bot.handlers import menu, master, polishing, otk, urgent, history, employees
 
 # Настройка логирования
 logging.basicConfig(
@@ -23,17 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 def create_dispatcher() -> Dispatcher:
-    """Создает и настраивает диспетчер бота."""
-    # Создаем диспетчер
+    """Создает и настраивает диспетчер."""
     dp = Dispatcher()
     
-    # Подключаем роутеры
+    # Подключаем роутеры в правильном порядке (от общего к частному)
     dp.include_router(menu.router)
-    dp.include_router(new_receipt.router)
-    dp.include_router(operations.router)
+    dp.include_router(master.router)
     dp.include_router(polishing.router)
     dp.include_router(otk.router)
+    dp.include_router(urgent.router)
     dp.include_router(history.router)
+    dp.include_router(employees.router)
     
     logger.info("Dispatcher created with all routers")
     return dp
@@ -91,11 +91,8 @@ async def setup_webhook() -> None:
         return
     
     bot = get_bot()
-    # WEBHOOK_URL уже содержит /webhook в конце (из Railway Variables)
-    # Telegram router: /telegram/webhook
-    # Итоговый URL: {WEBHOOK_URL}/telegram/webhook
     base_url = bot_config.WEBHOOK_URL.rstrip('/')
-    webhook_url = f"{base_url}/telegram/webhook"
+    webhook_url = f"{base_url}/webhook/telegram/webhook"
     
     await bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")

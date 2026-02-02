@@ -29,6 +29,13 @@ class BotConfig:
     # Порт для webhook
     PORT: int = int(os.getenv("PORT", 8000))
 
+    # Whitelist Telegram ID - только эти пользователи могут использовать бота
+    ALLOWED_TELEGRAM_IDS: list[int] = [
+        int(id_str.strip())
+        for id_str in os.getenv("TELEGRAM_ALLOWED_IDS", "").split(",")
+        if id_str.strip()
+    ]
+
     @classmethod
     def validate(cls) -> bool:
         """Проверяет, что все необходимые переменные окружения установлены."""
@@ -43,6 +50,14 @@ class BotConfig:
     def is_admin(cls, user_id: int) -> bool:
         """Проверяет, является ли пользователь администратором."""
         return user_id in cls.ADMIN_IDS
+
+    @classmethod
+    def is_allowed(cls, user_id: int) -> bool:
+        """Проверяет, есть ли у пользователя доступ к боту (whitelist)."""
+        # Если whitelist пустой, разрешаем всем (для разработки)
+        if not cls.ALLOWED_TELEGRAM_IDS:
+            return True
+        return user_id in cls.ALLOWED_TELEGRAM_IDS
 
 
 bot_config = BotConfig()

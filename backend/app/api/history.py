@@ -63,3 +63,14 @@ def get_history_by_receipt(
         items=[HistoryEventResponse.model_validate(e) for e in events],
         total=len(events),
     )
+
+
+@router.post("", response_model=HistoryEventResponse, status_code=status.HTTP_201_CREATED)
+def add_history_event(
+    data: HistoryEventCreate,
+    db: Session = Depends(get_db),
+):
+    """Добавить событие в историю."""
+    service = HistoryService(db)
+    event = service.create(data)
+    return HistoryEventResponse.model_validate(event)

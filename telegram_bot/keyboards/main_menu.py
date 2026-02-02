@@ -8,28 +8,32 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 def get_main_menu_keyboard() -> InlineKeyboardMarkup:
     """
     Главное меню бота.
-    Согласно ТЗ п. 10.2:
-    📥 Новая квитанция
-    🔧 Операции
-    🪙 Полировка
-    🔍 ОТК
-    📜 История
+    Согласно ТЗ Sprint 3:
+    👨‍🔧 Выдать часы мастеру
+    🪙 Отправить в полировку
+    🔍 ОТК-проверка
+    🕒 Срочные часы
+    📜 История по квитанции
+    👥 Сотрудники
     """
     buttons = [
         [
-            InlineKeyboardButton(text="📥 Новая квитанция", callback_data="menu:new_receipt"),
+            InlineKeyboardButton(text="👨‍🔧 Выдать часы мастеру", callback_data="menu:master"),
         ],
         [
-            InlineKeyboardButton(text="🔧 Операции", callback_data="menu:operations"),
+            InlineKeyboardButton(text="🪙 Отправить в полировку", callback_data="menu:polishing"),
         ],
         [
-            InlineKeyboardButton(text="🪙 Полировка", callback_data="menu:polishing"),
+            InlineKeyboardButton(text="🔍 ОТК-проверка", callback_data="menu:otk"),
         ],
         [
-            InlineKeyboardButton(text="🔍 ОТК", callback_data="menu:otk"),
+            InlineKeyboardButton(text="🕒 Срочные часы", callback_data="menu:urgent"),
         ],
         [
-            InlineKeyboardButton(text="📜 История", callback_data="menu:history"),
+            InlineKeyboardButton(text="📜 История по квитанции", callback_data="menu:history"),
+        ],
+        [
+            InlineKeyboardButton(text="👥 Сотрудники", callback_data="menu:employees"),
         ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
@@ -39,27 +43,27 @@ def get_back_keyboard(back_to: str = "main") -> InlineKeyboardMarkup:
     """Кнопка 'Назад' для возврата в меню."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="◀️ Назад", callback_data=f"back:{back_to}")]
+            [InlineKeyboardButton(text="⬅ Назад", callback_data=f"back:{back_to}")]
         ]
     )
 
 
-def get_cancel_keyboard() -> InlineKeyboardMarkup:
-    """Кнопка отмены действия."""
+def get_home_keyboard() -> InlineKeyboardMarkup:
+    """Кнопка 'В меню'."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel")]
+            [InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main")]
         ]
     )
 
 
-def get_confirm_keyboard() -> InlineKeyboardMarkup:
-    """Кнопки подтверждения/отмены."""
+def get_back_home_keyboard(back_to: str = "main") -> InlineKeyboardMarkup:
+    """Кнопки 'Назад' и 'В меню'."""
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [
-                InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm"),
-                InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"),
+                InlineKeyboardButton(text="⬅ Назад", callback_data=f"back:{back_to}"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
             ]
         ]
     )
