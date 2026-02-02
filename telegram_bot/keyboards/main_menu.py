@@ -67,3 +67,15 @@ def get_back_home_keyboard(back_to: str = "main") -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def get_confirm_keyboard() -> InlineKeyboardMarkup:
+    """Кнопки подтверждения/отмены."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Подтвердить", callback_data="confirm"),
+                InlineKeyboardButton(text="❌ Отмена", callback_data="cancel"),
+            ]
+        ]
+    )
