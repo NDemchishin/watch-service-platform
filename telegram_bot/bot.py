@@ -91,11 +91,11 @@ async def setup_webhook() -> None:
         return
     
     bot = get_bot()
-    # Railway дает URL вида https://xxx.up.railway.app
-    # Telegram router подключен напрямую с prefix /webhook
-    # Webhook endpoint: /telegram/webhook
+    # WEBHOOK_URL уже содержит /webhook в конце (из Railway Variables)
+    # Telegram router: /telegram/webhook
+    # Итоговый URL: {WEBHOOK_URL}/telegram/webhook
     base_url = bot_config.WEBHOOK_URL.rstrip('/')
-    webhook_url = f"{base_url}/webhook/telegram/webhook"
+    webhook_url = f"{base_url}/telegram/webhook"
     
     await bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")
