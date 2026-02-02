@@ -176,25 +176,21 @@ class APIClient:
         telegram_username: str = None,
     ) -> dict:
         """Выдаёт часы мастеру."""
-        # receipt_id и master_id должны быть query-параметрами
+        # Все параметры передаём как query-параметры
         params = {
             "receipt_id": receipt_id,
             "master_id": master_id,
-        }
-        
-        data = {
             "is_urgent": is_urgent,
             "telegram_id": telegram_id,
             "telegram_username": telegram_username,
         }
         if deadline:
-            data["deadline"] = deadline.isoformat()
+            params["deadline"] = deadline.isoformat()
         
         return await self._request(
             "POST",
             "/receipts/assign-master",
             params=params,
-            json_data=data
         )
 
     # ===== Employees =====
