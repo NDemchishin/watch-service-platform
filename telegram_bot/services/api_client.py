@@ -79,9 +79,13 @@ class APIClient:
                 }
             )
         except httpx.HTTPStatusError as e:
+            logger.error(f"HTTP error {e.response.status_code} for receipt {receipt_number}: {e.response.text}")
             if e.response.status_code == 400:
                 # Квитанция уже существует, пробуем получить
                 raise ValueError(f"Квитанция с номером {receipt_number} уже существует")
+            raise
+        except Exception as e:
+            logger.error(f"Error getting/creating receipt {receipt_number}: {e}")
             raise
 
     async def get_receipt_by_number(self, receipt_number: str) -> dict:

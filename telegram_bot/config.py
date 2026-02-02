@@ -33,7 +33,8 @@ class BotConfig:
         if cls.API_BASE_URL:
             return cls.API_BASE_URL
         # По умолчанию localhost (для Railway где бот и бэкенд в одном контейнере)
-        return "http://localhost:8000"
+        # Бэкенд запущен на порту 8080
+        return "http://localhost:8080"
 
     # Порт для webhook
     PORT: int = int(os.getenv("PORT", 8000))
