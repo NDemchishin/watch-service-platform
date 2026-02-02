@@ -31,11 +31,6 @@ class APIClient:
         """Закрывает HTTP клиент."""
         await self.client.aclose()
 
-    @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10),
-        retry=retry_if_exception_type((httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout))
-    )
     async def _request(
         self,
         method: str,
@@ -44,6 +39,8 @@ class APIClient:
         json_data: Optional[dict] = None,
     ) -> dict:
         """Выполняет HTTP запрос к API с retry логикой."""
+        # Remove trailing slash from endpoint to avoid redirect issues
+        endpoint = endpoint.rstrip('/')
         try:
             response = await self.client.request(
                 method=method,
