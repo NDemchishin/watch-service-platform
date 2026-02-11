@@ -144,11 +144,12 @@ class APIClient:
 
     async def get_receipts(self, skip: int = 0, limit: int = 10) -> list[dict]:
         """Получает список квитанций с пагинацией."""
-        return await self._request(
+        response = await self._request(
             "GET",
             "/receipts/",
             params={"skip": skip, "limit": limit}
         )
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def update_deadline(
         self,
@@ -196,23 +197,26 @@ class APIClient:
     # ===== Employees =====
     async def get_employees(self, active_only: bool = True) -> list[dict]:
         """Получает список сотрудников."""
-        return await self._request(
-            "GET", 
+        response = await self._request(
+            "GET",
             "/employees/",
             params={"active_only": active_only}
         )
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def get_all_employees(self) -> list[dict]:
         """Получает список всех сотрудников (включая неактивных)."""
-        return await self._request("GET", "/employees/")
+        response = await self._request("GET", "/employees/")
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def get_inactive_employees(self) -> list[dict]:
         """Получает список неактивных сотрудников."""
-        return await self._request(
+        response = await self._request(
             "GET",
             "/employees/",
             params={"active_only": False, "inactive_only": True}
         )
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def create_employee(
         self,
@@ -335,7 +339,8 @@ class APIClient:
     # ===== Returns =====
     async def get_return_reasons(self) -> list[dict]:
         """Получает список причин возврата."""
-        return await self._request("GET", "/returns/reasons")
+        response = await self._request("GET", "/returns/reasons")
+        return response.get("items", []) if isinstance(response, dict) else response
 
     async def create_return(
         self,
