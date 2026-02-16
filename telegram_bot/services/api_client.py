@@ -361,25 +361,43 @@ class APIClient:
     async def create_return(
         self,
         receipt_id: int,
-        reason_id: int,
-        responsible: Optional[str] = None,
+        reasons: list[dict],
+        comment: Optional[str] = None,
         telegram_id: int = None,
         telegram_username: str = None,
     ) -> dict:
-        """Создает возврат."""
-        data = {
-            "receipt_id": receipt_id,
-            "reason_id": reason_id,
-            "telegram_id": telegram_id,
-            "telegram_username": telegram_username,
-        }
-        if responsible:
-            data["responsible"] = responsible
-        
+        """
+        Создает возврат с причинами.
+        reasons — список {"reason_id": int, "guilty_employee_id": int | None}
+        """
         return await self._request(
             "POST",
             "/returns/",
-            json_data=data
+            json_data={
+                "receipt_id": receipt_id,
+                "reasons": reasons,
+                "comment": comment,
+                "telegram_id": telegram_id,
+                "telegram_username": telegram_username,
+            }
+        )
+
+    async def get_returns_by_receipt(self, receipt_id: int) -> list[dict]:
+        """Получает все возвраты по квитанции."""
+        response = await self._request("GET", f"/returns/receipt/{receipt_id}")
+        return self._unwrap_paginated(response)
+
+    # ===== Notifications =====
+    async def get_pending_notifications(self) -> list[dict]:
+        """Получает неотправленные уведомления, время которых наступило."""
+        response = await self._request("GET", "/notifications/pending")
+        return self._unwrap_paginated(response)
+
+    async def mark_notification_sent(self, notification_id: int) -> dict:
+        """Отмечает уведомление как отправленное."""
+        return await self._request(
+            "POST",
+            f"/notifications/{notification_id}/mark-sent",
         )
 
     # ===== History =====

@@ -10,6 +10,7 @@ from aiogram.enums import ParseMode
 
 from telegram_bot.config import bot_config
 from telegram_bot.states import MainMenu
+from telegram_bot.services.notification_scheduler import run_notification_scheduler
 
 # Импорт роутеров (прямой импорт для избежания проблем сcircular imports)
 from telegram_bot.handlers import menu
@@ -58,7 +59,10 @@ async def start_polling():
     dp = create_dispatcher()
     
     logger.info("Starting bot in polling mode...")
-    
+
+    # Запускаем фоновый scheduler уведомлений
+    asyncio.create_task(run_notification_scheduler(bot))
+
     try:
         await dp.start_polling(bot)
     finally:
@@ -95,7 +99,7 @@ async def setup_webhook() -> None:
     if not bot_config.WEBHOOK_URL:
         logger.warning("WEBHOOK_URL not set, skipping webhook setup")
         return
-    
+
     bot = get_bot()
     base_url = bot_config.WEBHOOK_URL.rstrip('/')
     # Remove /webhook suffix if present to avoid duplication
@@ -103,9 +107,13 @@ async def setup_webhook() -> None:
         base_url = base_url[:-8]
     # Route is: /webhook/telegram/webhook
     webhook_url = f"{base_url}/webhook/telegram/webhook"
-    
+
     await bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")
+
+    # Запускаем фоновый scheduler уведомлений
+    asyncio.create_task(run_notification_scheduler(bot))
+    logger.info("Notification scheduler started as background task")
 
 
 async def process_update(update_data: dict) -> None:

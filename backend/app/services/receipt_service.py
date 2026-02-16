@@ -10,6 +10,7 @@ from sqlalchemy import desc, exists, and_
 from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.receipt import ReceiptCreate, ReceiptUpdate
+from app.services.notification_service import NotificationService
 
 
 class ReceiptService:
@@ -93,11 +94,17 @@ class ReceiptService:
             telegram_username=telegram_username,
         )
         self.db.add(history_event)
-        
+
         self.db.commit()
         self.db.refresh(receipt)
+
+        # Планируем уведомления если есть дедлайн
+        if data.current_deadline:
+            notification_service = NotificationService(self.db)
+            notification_service.schedule_notifications(receipt.id, data.current_deadline)
+
         return receipt
-    
+
     def update_deadline(
         self,
         receipt: Receipt,
@@ -121,7 +128,15 @@ class ReceiptService:
             telegram_username=telegram_username,
         )
         self.db.add(history_event)
-        
+
         self.db.commit()
         self.db.refresh(receipt)
+
+        # Перепланируем уведомления
+        notification_service = NotificationService(self.db)
+        if new_deadline:
+            notification_service.schedule_notifications(receipt.id, new_deadline)
+        else:
+            notification_service.cancel_notifications(receipt.id)
+
         return receipt

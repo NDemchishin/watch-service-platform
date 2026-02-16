@@ -14,6 +14,7 @@ from app.models.operation import OperationType, Operation
 from app.models.polishing import PolishingDetails
 from app.models.return_ import Return, ReturnReason, ReturnReasonLink
 from app.models.history import HistoryEvent
+from app.models.notification import Notification
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

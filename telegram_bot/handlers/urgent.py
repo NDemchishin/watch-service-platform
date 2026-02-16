@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import Urgent
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.services.notification_scheduler import send_notification_to_otk, NOTIFICATION_MESSAGES
 from telegram_bot.utils import format_datetime
 
 logger = logging.getLogger(__name__)
@@ -212,6 +213,12 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
         if new_deadline < now:
             new_deadline = new_deadline.replace(year=now.year + 1)
         
+        # Получаем квитанцию для номера
+        receipt = await get_api_client().get_receipt(receipt_id)
+        receipt_number = receipt.get("receipt_number", str(receipt_id))
+        old_deadline_raw = receipt.get("current_deadline")
+        old_deadline_str = format_datetime(old_deadline_raw) if old_deadline_raw else "не установлен"
+
         # Обновляем дедлайн через API
         await get_api_client().update_deadline(
             receipt_id=receipt_id,
@@ -219,13 +226,22 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
             telegram_id=user.id,
             telegram_username=user.username,
         )
-        
+
         await message.answer(
             text=f"✅ Срок успешно изменён!\n\n"
                  f"Новая дата: {new_deadline.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_back_home_keyboard("main")
         )
         logger.info(f"Deadline updated for receipt {receipt_id}")
+
+        # Отправляем уведомление всем OTK (Issue #26)
+        notify_text = NOTIFICATION_MESSAGES["deadline_changed"].format(
+            receipt_number=receipt_number,
+            old_deadline=old_deadline_str,
+            new_deadline=new_deadline.strftime("%d.%m.%Y %H:%M"),
+            username=user.username or str(user.id),
+        )
+        await send_notification_to_otk(message.bot, notify_text)
         
     except ValueError as e:
         logger.error(f"Error parsing deadline: {e}")

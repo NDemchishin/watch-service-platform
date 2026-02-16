@@ -12,10 +12,60 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import History
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.services.notification_scheduler import send_notification_to_otk, NOTIFICATION_MESSAGES
 from telegram_bot.utils import format_datetime
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+# Человекочитаемые названия типов событий
+EVENT_TYPE_LABELS = {
+    "receipt_created": "Квитанция создана",
+    "sent_to_master": "Выдано мастеру",
+    "deadline_changed": "Дедлайн изменён",
+    "passed_otk": "Прошло ОТК",
+    "return_initiated": "Возврат инициирован",
+    "return_created": "Возврат оформлен",
+    "polishing_sent": "Отправлено в полировку",
+    "polishing_returned": "Возврат из полировки",
+    "operation_created": "Операция создана",
+    "master_changed": "Мастер изменён",
+    "comment_added": "Комментарий",
+}
+
+
+def _format_event(event: dict) -> str:
+    """Форматирует событие истории в читаемую строку."""
+    event_type = event.get("event_type", "unknown")
+    label = EVENT_TYPE_LABELS.get(event_type, event_type)
+    payload = event.get("payload") or {}
+
+    if event_type == "return_created":
+        reasons = payload.get("reasons", [])
+        reason_names = [r.get("reason_name", "?") for r in reasons]
+        if reason_names:
+            label += f" ({', '.join(reason_names)})"
+        guilty_entries = [r for r in reasons if r.get("guilty_employee_name")]
+        if guilty_entries:
+            names = [r["guilty_employee_name"] for r in guilty_entries]
+            label += f" виновный: {', '.join(names)}"
+
+    elif event_type == "sent_to_master":
+        master = payload.get("master_name")
+        if master:
+            label += f" — {master}"
+
+    elif event_type == "polishing_sent":
+        polisher = payload.get("polisher_name")
+        if polisher:
+            label += f" — {polisher}"
+
+    elif event_type == "comment_added":
+        comment = payload.get("comment", "")
+        if comment:
+            label += f": {comment[:40]}"
+
+    return label
 
 
 @router.callback_query(F.data == "menu:history")
@@ -124,7 +174,8 @@ async def show_history(message_or_callback, state, receipt, history) -> None:
         for event in history[:10]:  # Показываем последние 10
             event_type = event.get("event_type", "unknown")
             time_str = format_datetime(event.get("created_at", ""), fmt="%d.%m %H:%M")
-            message_text += f"• {event_type} — {time_str}\n"
+            label = _format_event(event)
+            message_text += f"• {label} — {time_str}\n"
         
         if len(history) > 10:
             message_text += f"\n... и ещё {len(history) - 10} событий"
@@ -202,19 +253,33 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
         if new_deadline < now:
             new_deadline = new_deadline.replace(year=now.year + 1)
         
+        # Получаем текущий дедлайн для уведомления
+        receipt_data = await get_api_client().get_receipt(receipt_id)
+        old_deadline_raw = receipt_data.get("current_deadline")
+        old_deadline_str = format_datetime(old_deadline_raw) if old_deadline_raw else "не установлен"
+
         await get_api_client().update_deadline(
             receipt_id=receipt_id,
             new_deadline=new_deadline,
             telegram_id=user.id,
             telegram_username=user.username,
         )
-        
+
         await message.answer(
             text=f"✅ Срок успешно изменён!\n\n"
                  f"Новая дата: {new_deadline.strftime('%d.%m.%Y %H:%M')}",
             reply_markup=get_back_home_keyboard("main")
         )
         logger.info(f"Deadline updated for receipt {receipt_id}")
+
+        # Отправляем уведомление всем OTK (Issue #26)
+        notify_text = NOTIFICATION_MESSAGES["deadline_changed"].format(
+            receipt_number=receipt_number,
+            old_deadline=old_deadline_str,
+            new_deadline=new_deadline.strftime("%d.%m.%Y %H:%M"),
+            username=user.username or str(user.id),
+        )
+        await send_notification_to_otk(message.bot, notify_text)
         
     except ValueError as e:
         logger.error(f"Error parsing deadline: {e}")
