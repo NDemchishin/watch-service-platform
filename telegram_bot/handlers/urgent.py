@@ -3,6 +3,7 @@
 Согласно ТЗ Sprint 3: показ часов с дедлайном, изменение дедлайна.
 """
 import logging
+import httpx
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
@@ -11,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import Urgent
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import format_datetime
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -35,16 +37,9 @@ async def show_urgent_list(callback: CallbackQuery, state: FSMContext) -> None:
         
         buttons = []
         for receipt in receipts:
-            deadline = receipt.get("current_deadline")
-            if deadline:
-                # Парсим дату
-                try:
-                    dt = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
-                    deadline_str = dt.strftime("%d.%m %H:%M")
-                except:
-                    deadline_str = deadline
-            else:
-                deadline_str = "не указан"
+            deadline_str = format_datetime(
+                receipt.get("current_deadline"), fmt="%d.%m %H:%M"
+            )
             
             buttons.append([
                 InlineKeyboardButton(
@@ -67,10 +62,22 @@ async def show_urgent_list(callback: CallbackQuery, state: FSMContext) -> None:
         )
         await state.set_state(Urgent.list)
         
-    except Exception as e:
-        logger.error(f"Error fetching urgent receipts: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while fetching urgent receipts")
         await callback.message.edit_text(
-            text="❌ Ошибка при получении списка.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while fetching urgent receipts")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при получении списка.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching urgent receipts: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при получении списка.",
             reply_markup=get_back_home_keyboard("main")
         )
     
@@ -86,15 +93,7 @@ async def view_urgent_receipt(callback: CallbackQuery, state: FSMContext) -> Non
         receipt = await get_api_client().get_receipt(receipt_id)
         history = await get_api_client().get_receipt_history(receipt_id)
         
-        deadline = receipt.get("current_deadline")
-        if deadline:
-            try:
-                dt = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
-                deadline_str = dt.strftime("%d.%m.%Y %H:%M")
-            except:
-                deadline_str = deadline
-        else:
-            deadline_str = "не указан"
+        deadline_str = format_datetime(receipt.get("current_deadline"))
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
@@ -129,10 +128,22 @@ async def view_urgent_receipt(callback: CallbackQuery, state: FSMContext) -> Non
         )
         await state.set_state(Urgent.select_receipt)
         
-    except Exception as e:
-        logger.error(f"Error fetching receipt: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while fetching receipt")
         await callback.message.edit_text(
-            text="❌ Ошибка при получении квитанции.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while fetching receipt")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при получении квитанции.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching receipt: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при получении квитанции.",
             reply_markup=get_back_home_keyboard("main")
         )
     
@@ -259,10 +270,22 @@ async def show_urgent_history(callback: CallbackQuery, state: FSMContext) -> Non
             reply_markup=get_back_home_keyboard("main")
         )
         
-    except Exception as e:
-        logger.error(f"Error fetching history: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while fetching history")
         await callback.message.edit_text(
-            text="❌ Ошибка при получении истории.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while fetching history")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при получении истории.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching history: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при получении истории.",
             reply_markup=get_back_home_keyboard("main")
         )
     

@@ -5,7 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import desc, exists, and_
 
 from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
@@ -40,33 +40,27 @@ class ReceiptService:
         """
         Получить список срочных часов.
         Согласно ТЗ Sprint 3: только часы с current_deadline, не прошедшие ОТК.
+        Один SQL-запрос с NOT EXISTS вместо N+1.
         """
-        from app.models.history import HistoryEvent
-        
-        # Находим квитанции с дедлайном
-        urgent_receipts = (
+        otk_exists = (
+            exists()
+            .where(
+                and_(
+                    HistoryEvent.receipt_id == Receipt.id,
+                    HistoryEvent.event_type == "passed_otk",
+                )
+            )
+        )
+
+        return (
             self.db.query(Receipt)
-            .filter(Receipt.current_deadline.isnot(None))
+            .filter(
+                Receipt.current_deadline.isnot(None),
+                ~otk_exists,
+            )
             .order_by(Receipt.current_deadline)
             .all()
         )
-        
-        # Фильтруем: не прошедшие ОТК
-        result = []
-        for receipt in urgent_receipts:
-            # Проверяем, есть ли событие passed_otk
-            has_otk = (
-                self.db.query(HistoryEvent)
-                .filter(
-                    HistoryEvent.receipt_id == receipt.id,
-                    HistoryEvent.event_type == "passed_otk"
-                )
-                .first()
-            )
-            if not has_otk:
-                result.append(receipt)
-        
-        return result
     
     def create(
         self,

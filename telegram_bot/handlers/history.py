@@ -3,6 +3,7 @@
 Согласно ТЗ Sprint 3: история с возможностью редактирования.
 """
 import logging
+import httpx
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
@@ -11,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import History
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import format_datetime
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -62,11 +64,22 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
                  f"Проверьте номер и попробуйте снова:",
             reply_markup=get_back_keyboard("main")
         )
-    except Exception as e:
-        logger.error(f"Error fetching history: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while fetching history")
         await message.answer(
-            text=f"❌ Ошибка при получении истории.\n\n"
-                 f"Попробуйте снова:",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while fetching history")
+        await message.answer(
+            text="❌ Ошибка сервера при получении истории.\n\nПопробуйте снова:",
+            reply_markup=get_back_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching history: {e}")
+        await message.answer(
+            text="❌ Непредвиденная ошибка. Попробуйте снова.",
             reply_markup=get_back_keyboard("main")
         )
 
@@ -76,15 +89,7 @@ async def show_history(message_or_callback, state, receipt, history) -> None:
     receipt_number = receipt.get("receipt_number", "Unknown")
     receipt_id = receipt.get("id")
     
-    deadline = receipt.get("current_deadline")
-    if deadline:
-        try:
-            dt = datetime.fromisoformat(deadline.replace("Z", "+00:00"))
-            deadline_str = dt.strftime("%d.%m.%Y %H:%M")
-        except:
-            deadline_str = deadline
-    else:
-        deadline_str = "не указан"
+    deadline_str = format_datetime(receipt.get("current_deadline"))
     
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
@@ -118,13 +123,7 @@ async def show_history(message_or_callback, state, receipt, history) -> None:
         
         for event in history[:10]:  # Показываем последние 10
             event_type = event.get("event_type", "unknown")
-            created_at = event.get("created_at", "")
-            try:
-                dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
-                time_str = dt.strftime("%d.%m %H:%M")
-            except:
-                time_str = created_at[:16] if created_at else ""
-            
+            time_str = format_datetime(event.get("created_at", ""), fmt="%d.%m %H:%M")
             message_text += f"• {event_type} — {time_str}\n"
         
         if len(history) > 10:
@@ -265,10 +264,22 @@ async def start_change_master(callback: CallbackQuery, state: FSMContext) -> Non
         )
         await state.set_state(History.select_new_master)
         
-    except Exception as e:
-        logger.error(f"Error fetching employees: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while fetching employees")
         await callback.message.edit_text(
-            text="❌ Ошибка при получении списка сотрудников.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while fetching employees")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при получении списка сотрудников.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error fetching employees: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка.",
             reply_markup=get_back_home_keyboard("main")
         )
     
@@ -301,10 +312,22 @@ async def change_master(callback: CallbackQuery, state: FSMContext) -> None:
         )
         logger.info(f"Master changed for receipt {receipt_id}")
         
-    except Exception as e:
-        logger.error(f"Error changing master: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while changing master")
         await callback.message.edit_text(
-            text="❌ Ошибка при смене мастера.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while changing master")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при смене мастера.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error changing master: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при смене мастера.",
             reply_markup=get_back_home_keyboard("main")
         )
     
@@ -355,10 +378,22 @@ async def process_comment(message: Message, state: FSMContext) -> None:
         )
         logger.info(f"Comment added for receipt {receipt_id}")
         
-    except Exception as e:
-        logger.error(f"Error adding comment: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while adding comment")
         await message.answer(
-            text="❌ Ошибка при добавлении комментария.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while adding comment")
+        await message.answer(
+            text="❌ Ошибка сервера при добавлении комментария.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error adding comment: {e}")
+        await message.answer(
+            text="❌ Непредвиденная ошибка при добавлении комментария.",
             reply_markup=get_back_home_keyboard("main")
         )
     

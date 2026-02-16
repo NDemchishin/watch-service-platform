@@ -7,7 +7,7 @@ import logging
 from typing import Optional
 from datetime import datetime
 from telegram_bot.config import bot_config
-from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, before_sleep_log
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +52,13 @@ class APIClient:
             logger.debug("HTTP client closed")
             self._client = None
     
+    @retry(
+        retry=retry_if_exception_type((httpx.ConnectError, httpx.TimeoutException)),
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=1, max=10),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
     async def _request(
         self,
         method: str,
@@ -86,6 +93,13 @@ class APIClient:
         except Exception as e:
             logger.error(f"Unexpected error on {endpoint}: {e}")
             raise
+
+    @staticmethod
+    def _unwrap_paginated(response) -> list:
+        """Извлекает список items из пагинированного ответа API."""
+        if isinstance(response, dict):
+            return response.get("items", [])
+        return response
 
     # ===== Receipts =====
     async def get_or_create_receipt(
@@ -128,7 +142,7 @@ class APIClient:
     async def get_urgent_receipts(self) -> list[dict]:
         """Получает список срочных часов (с дедлайном, не прошедших ОТК)."""
         response = await self._request("GET", "/receipts/urgent")
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def create_receipt(self, receipt_number: str) -> dict:
         """Создает новую квитанцию."""
@@ -149,7 +163,7 @@ class APIClient:
             "/receipts/",
             params={"skip": skip, "limit": limit}
         )
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def update_deadline(
         self,
@@ -162,8 +176,11 @@ class APIClient:
         return await self._request(
             "PATCH",
             f"/receipts/{receipt_id}/deadline",
-            json_data={"current_deadline": new_deadline.isoformat()},
-            params={"telegram_id": telegram_id, "telegram_username": telegram_username}
+            json_data={
+                "current_deadline": new_deadline.isoformat(),
+                "telegram_id": telegram_id,
+                "telegram_username": telegram_username,
+            },
         )
 
     # ===== Master Assignment =====
@@ -177,8 +194,7 @@ class APIClient:
         telegram_username: str = None,
     ) -> dict:
         """Выдаёт часы мастеру."""
-        # Все параметры передаём как query-параметры
-        params = {
+        json_data = {
             "receipt_id": receipt_id,
             "master_id": master_id,
             "is_urgent": is_urgent,
@@ -186,12 +202,12 @@ class APIClient:
             "telegram_username": telegram_username,
         }
         if deadline:
-            params["deadline"] = deadline.isoformat()
-        
+            json_data["deadline"] = deadline.isoformat()
+
         return await self._request(
             "POST",
             "/receipts/assign-master",
-            params=params,
+            json_data=json_data,
         )
 
     # ===== Employees =====
@@ -202,12 +218,12 @@ class APIClient:
             "/employees/",
             params={"active_only": active_only}
         )
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def get_all_employees(self) -> list[dict]:
         """Получает список всех сотрудников (включая неактивных)."""
         response = await self._request("GET", "/employees/")
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def get_inactive_employees(self) -> list[dict]:
         """Получает список неактивных сотрудников."""
@@ -216,7 +232,7 @@ class APIClient:
             "/employees/",
             params={"active_only": False, "inactive_only": True}
         )
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def create_employee(
         self,
@@ -340,7 +356,7 @@ class APIClient:
     async def get_return_reasons(self) -> list[dict]:
         """Получает список причин возврата."""
         response = await self._request("GET", "/returns/reasons")
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def create_return(
         self,
@@ -373,7 +389,7 @@ class APIClient:
             "GET",
             f"/history/receipt/{receipt_id}"
         )
-        return response.get("items", []) if isinstance(response, dict) else response
+        return self._unwrap_paginated(response)
 
     async def add_history_event(
         self,

@@ -24,7 +24,7 @@ def list_operation_types(db: Session = Depends(get_db)):
     """Получить список типов операций."""
     service = OperationService(db)
     types = service.get_all_types()
-    
+
     return OperationTypeListResponse(
         items=[OperationTypeResponse.model_validate(t) for t in types],
         total=len(types),
@@ -36,13 +36,13 @@ def get_operation_type(type_code: str, db: Session = Depends(get_db)):
     """Получить тип операции по коду."""
     service = OperationService(db)
     op_type = service.get_type_by_code(type_code)
-    
+
     if not op_type:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Тип операции с кодом {type_code} не найден",
         )
-    
+
     return OperationTypeResponse.model_validate(op_type)
 
 
@@ -53,25 +53,13 @@ def list_operations(
     db: Session = Depends(get_db),
 ):
     """Получить список всех операций."""
-    # TODO: добавить фильтрацию по квитанции
     service = OperationService(db)
-    # Пока возвращаем пустой список, так как нет метода get_all
-    return OperationListResponse(items=[], total=0)
+    operations = service.get_all(skip=skip, limit=limit)
 
-
-@router.get("/{operation_id}", response_model=OperationResponse)
-def get_operation(operation_id: int, db: Session = Depends(get_db)):
-    """Получить операцию по ID."""
-    service = OperationService(db)
-    operation = service.get_by_id(operation_id)
-    
-    if not operation:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Операция с ID {operation_id} не найдена",
-        )
-    
-    return OperationResponse.model_validate(operation)
+    return OperationListResponse(
+        items=[OperationResponse.model_validate(op) for op in operations],
+        total=len(operations),
+    )
 
 
 @router.get("/receipt/{receipt_id}", response_model=OperationListResponse)
@@ -79,11 +67,26 @@ def get_operations_by_receipt(receipt_id: int, db: Session = Depends(get_db)):
     """Получить все операции по квитанции."""
     service = OperationService(db)
     operations = service.get_by_receipt(receipt_id)
-    
+
     return OperationListResponse(
         items=[OperationResponse.model_validate(op) for op in operations],
         total=len(operations),
     )
+
+
+@router.get("/{operation_id}", response_model=OperationResponse)
+def get_operation(operation_id: int, db: Session = Depends(get_db)):
+    """Получить операцию по ID."""
+    service = OperationService(db)
+    operation = service.get_by_id(operation_id)
+
+    if not operation:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Операция с ID {operation_id} не найдена",
+        )
+
+    return OperationResponse.model_validate(operation)
 
 
 @router.post("", response_model=OperationResponse, status_code=status.HTTP_201_CREATED)

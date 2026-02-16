@@ -24,7 +24,7 @@ def list_return_reasons(db: Session = Depends(get_db)):
     """Получить список причин возврата."""
     service = ReturnService(db)
     reasons = service.get_all_reasons()
-    
+
     return ReturnReasonListResponse(
         items=[ReturnReasonResponse.model_validate(r) for r in reasons],
         total=len(reasons),
@@ -36,13 +36,13 @@ def get_return_reason(reason_code: str, db: Session = Depends(get_db)):
     """Получить причину возврата по коду."""
     service = ReturnService(db)
     reason = service.get_reason_by_code(reason_code)
-    
+
     if not reason:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Причина возврата с кодом {reason_code} не найдена",
         )
-    
+
     return ReturnReasonResponse.model_validate(reason)
 
 
@@ -53,23 +53,13 @@ def list_returns(
     db: Session = Depends(get_db),
 ):
     """Получить список всех возвратов."""
-    # TODO: добавить метод get_all в сервис
-    return ReturnListResponse(items=[], total=0)
-
-
-@router.get("/{return_id}", response_model=ReturnResponse)
-def get_return(return_id: int, db: Session = Depends(get_db)):
-    """Получить возврат по ID."""
     service = ReturnService(db)
-    return_record = service.get_by_id(return_id)
-    
-    if not return_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Возврат с ID {return_id} не найден",
-        )
-    
-    return ReturnResponse.model_validate(return_record)
+    returns = service.get_all(skip=skip, limit=limit)
+
+    return ReturnListResponse(
+        items=[ReturnResponse.model_validate(r) for r in returns],
+        total=len(returns),
+    )
 
 
 @router.get("/receipt/{receipt_id}", response_model=ReturnListResponse)
@@ -77,11 +67,26 @@ def get_returns_by_receipt(receipt_id: int, db: Session = Depends(get_db)):
     """Получить все возвраты по квитанции."""
     service = ReturnService(db)
     returns = service.get_by_receipt(receipt_id)
-    
+
     return ReturnListResponse(
         items=[ReturnResponse.model_validate(r) for r in returns],
         total=len(returns),
     )
+
+
+@router.get("/{return_id}", response_model=ReturnResponse)
+def get_return(return_id: int, db: Session = Depends(get_db)):
+    """Получить возврат по ID."""
+    service = ReturnService(db)
+    return_record = service.get_by_id(return_id)
+
+    if not return_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Возврат с ID {return_id} не найден",
+        )
+
+    return ReturnResponse.model_validate(return_record)
 
 
 @router.post("", response_model=ReturnResponse, status_code=status.HTTP_201_CREATED)

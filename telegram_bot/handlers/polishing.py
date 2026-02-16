@@ -3,6 +3,7 @@
 Согласно ТЗ Sprint 3: квитанция создаётся автоматически.
 """
 import logging
+import httpx
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
@@ -80,11 +81,23 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         await state.set_state(Polishing.select_polisher)
         
-    except Exception as e:
-        logger.error(f"Error with receipt: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while processing receipt for polishing")
         await message.answer(
-            text=f"❌ Ошибка при работе с квитанцией №{receipt_number}.\n\n"
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} for receipt {receipt_number}")
+        await message.answer(
+            text=f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}.\n\n"
                  f"Попробуйте снова:",
+            reply_markup=get_back_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error with receipt for polishing: {e}")
+        await message.answer(
+            text="❌ Непредвиденная ошибка. Попробуйте снова.",
             reply_markup=get_back_keyboard("main")
         )
 
@@ -232,10 +245,22 @@ async def confirm_polishing(callback: CallbackQuery, state: FSMContext) -> None:
         )
         logger.info(f"Polishing created for receipt {data.get('receipt_id')}")
         
-    except Exception as e:
-        logger.error(f"Error creating polishing: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while creating polishing")
         await callback.message.edit_text(
-            text="❌ Ошибка при передаче в полировку.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while creating polishing")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при передаче в полировку.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error creating polishing: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при передаче в полировку.",
             reply_markup=get_back_home_keyboard("main")
         )
     

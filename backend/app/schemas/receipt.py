@@ -31,6 +31,18 @@ class ReceiptGetOrCreate(BaseModel):
 class ReceiptUpdate(BaseModel):
     """Схема обновления квитанции (смена дедлайна)."""
     current_deadline: Optional[datetime] = None
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
+
+
+class AssignMasterRequest(BaseModel):
+    """Схема для выдачи часов мастеру."""
+    receipt_id: int
+    master_id: int
+    is_urgent: bool = False
+    deadline: Optional[datetime] = None
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class ReceiptResponse(ReceiptBase):

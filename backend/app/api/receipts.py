@@ -15,6 +15,7 @@ from app.schemas.receipt import (
     ReceiptListResponse,
     ReceiptWithHistoryResponse,
     ReceiptGetOrCreate,
+    AssignMasterRequest,
 )
 from app.schemas.history import HistoryEventResponse, HistoryEventCreate
 from app.services.receipt_service import ReceiptService
@@ -166,38 +167,31 @@ def create_receipt(
 def update_deadline(
     receipt_id: int,
     data: ReceiptUpdate,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Обновить дедлайн квитанции."""
     service = ReceiptService(db)
     receipt = service.get_by_id(receipt_id)
-    
+
     if not receipt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Квитанция с ID {receipt_id} не найдена",
         )
-    
+
     updated = service.update_deadline(
         receipt=receipt,
         new_deadline=data.current_deadline,
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
-    
+
     return ReceiptResponse.model_validate(updated)
 
 
 @router.post("/assign-master", response_model=ReceiptResponse)
 def assign_to_master(
-    receipt_id: int,
-    master_id: int,
-    is_urgent: bool = False,
-    deadline: Optional[datetime] = None,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
+    data: AssignMasterRequest,
     db: Session = Depends(get_db),
 ):
     """
@@ -207,45 +201,45 @@ def assign_to_master(
     receipt_service = ReceiptService(db)
     history_service = HistoryService(db)
     employee_service = EmployeeService(db)
-    
-    receipt = receipt_service.get_by_id(receipt_id)
+
+    receipt = receipt_service.get_by_id(data.receipt_id)
     if not receipt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Квитанция с ID {receipt_id} не найдена",
+            detail=f"Квитанция с ID {data.receipt_id} не найдена",
         )
-    
-    master = employee_service.get_by_id(master_id)
+
+    master = employee_service.get_by_id(data.master_id)
     if not master:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Мастер с ID {master_id} не найден",
+            detail=f"Мастер с ID {data.master_id} не найден",
         )
-    
+
     # Если срочные, обновляем дедлайн
-    if is_urgent and deadline:
+    if data.is_urgent and data.deadline:
         receipt_service.update_deadline(
             receipt=receipt,
-            new_deadline=deadline,
-            telegram_id=telegram_id,
-            telegram_username=telegram_username,
+            new_deadline=data.deadline,
+            telegram_id=data.telegram_id,
+            telegram_username=data.telegram_username,
         )
-    
+
     # Создаём событие истории
     history_data = HistoryEventCreate(
-        receipt_id=receipt_id,
+        receipt_id=data.receipt_id,
         event_type="sent_to_master",
         payload={
-            "master_id": master_id,
+            "master_id": data.master_id,
             "master_name": master.name,
-            "urgent": is_urgent,
-            "deadline": deadline.isoformat() if deadline else None,
+            "urgent": data.is_urgent,
+            "deadline": data.deadline.isoformat() if data.deadline else None,
         },
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
     history_service.create(history_data)
-    
+
     return ReceiptResponse.model_validate(receipt)
 
 

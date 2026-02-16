@@ -29,6 +29,20 @@ class ReturnService:
             .first()
         )
     
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[Return]:
+        """Получить список всех возвратов с пагинацией."""
+        return (
+            self.db.query(Return)
+            .options(
+                joinedload(Return.reasons).joinedload(ReturnReasonLink.reason),
+                joinedload(Return.reasons).joinedload(ReturnReasonLink.guilty_employee),
+            )
+            .order_by(desc(Return.created_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def get_by_receipt(self, receipt_id: int) -> list[Return]:
         """Получить все возвраты по квитанции."""
         return (

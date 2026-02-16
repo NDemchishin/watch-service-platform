@@ -29,6 +29,20 @@ class OperationService:
             .first()
         )
     
+    def get_all(self, skip: int = 0, limit: int = 100) -> list[Operation]:
+        """Получить список всех операций с пагинацией."""
+        return (
+            self.db.query(Operation)
+            .options(
+                joinedload(Operation.operation_type),
+                joinedload(Operation.employee),
+            )
+            .order_by(desc(Operation.created_at))
+            .offset(skip)
+            .limit(limit)
+            .all()
+        )
+
     def get_by_receipt(self, receipt_id: int) -> list[Operation]:
         """Получить все операции по квитанции."""
         return (

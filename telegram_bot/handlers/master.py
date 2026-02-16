@@ -3,6 +3,7 @@
 Согласно ТЗ Sprint 3: квитанция создаётся автоматически, фиксация who/what/when.
 """
 import logging
+import httpx
 from datetime import datetime
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
@@ -81,11 +82,23 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         await state.set_state(Master.select_master)
         
-    except Exception as e:
-        logger.error(f"Error with receipt: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while processing receipt")
         await message.answer(
-            text=f"❌ Ошибка при работе с квитанцией №{receipt_number}.\n\n"
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} for receipt {receipt_number}")
+        await message.answer(
+            text=f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}.\n\n"
                  f"Попробуйте снова:",
+            reply_markup=get_back_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error with receipt: {e}")
+        await message.answer(
+            text=f"❌ Непредвиденная ошибка. Попробуйте снова.",
             reply_markup=get_back_keyboard("main")
         )
 
@@ -254,10 +267,22 @@ async def confirm_assign_to_master(callback: CallbackQuery, state: FSMContext) -
         )
         logger.info(f"Assigned to master: receipt={receipt_id}, master={master_id}")
         
-    except Exception as e:
-        logger.error(f"Error assigning to master: {e}")
+    except httpx.ConnectError:
+        logger.exception("Connection error while assigning to master")
         await callback.message.edit_text(
-            text="❌ Ошибка при выдаче часов мастеру.",
+            text="❌ Сервер недоступен. Попробуйте позже.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except httpx.HTTPStatusError as e:
+        logger.exception(f"HTTP error {e.response.status_code} while assigning to master")
+        await callback.message.edit_text(
+            text="❌ Ошибка сервера при выдаче часов мастеру.",
+            reply_markup=get_back_home_keyboard("main")
+        )
+    except Exception as e:
+        logger.exception(f"Unexpected error assigning to master: {e}")
+        await callback.message.edit_text(
+            text="❌ Непредвиденная ошибка при выдаче часов мастеру.",
             reply_markup=get_back_home_keyboard("main")
         )
     
