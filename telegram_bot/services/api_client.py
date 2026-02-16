@@ -400,6 +400,41 @@ class APIClient:
             f"/notifications/{notification_id}/mark-sent",
         )
 
+    # ===== Analytics =====
+    async def get_assembly_quality(self, period: str = "all") -> dict:
+        """Получает аналитику качества сборки."""
+        return await self._request(
+            "GET", "/analytics/quality/assembly", params={"period": period}
+        )
+
+    async def get_mechanism_quality(self, period: str = "all") -> dict:
+        """Получает аналитику качества механизма."""
+        return await self._request(
+            "GET", "/analytics/quality/mechanism", params={"period": period}
+        )
+
+    async def get_polishing_quality(self, period: str = "all") -> dict:
+        """Получает аналитику качества полировки."""
+        return await self._request(
+            "GET", "/analytics/quality/polishing", params={"period": period}
+        )
+
+    async def get_polishing_workload(self) -> dict:
+        """Получает загрузку полировщиков."""
+        return await self._request("GET", "/analytics/polishing/workload")
+
+    async def get_performance(self, period: str = "all") -> dict:
+        """Получает производительность за период."""
+        return await self._request(
+            "GET", "/analytics/performance", params={"period": period}
+        )
+
+    async def get_returns_summary(self, period: str = "all") -> dict:
+        """Получает сводку возвратов."""
+        return await self._request(
+            "GET", "/analytics/returns/summary", params={"period": period}
+        )
+
     # ===== History =====
     async def get_receipt_history(self, receipt_id: int) -> list[dict]:
         """Получает историю квитанции."""

@@ -35,6 +35,9 @@ def get_main_menu_keyboard() -> InlineKeyboardMarkup:
         [
             InlineKeyboardButton(text="👥 Сотрудники", callback_data="menu:employees"),
         ],
+        [
+            InlineKeyboardButton(text="📊 Аналитика", callback_data="menu:analytics"),
+        ],
     ]
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 

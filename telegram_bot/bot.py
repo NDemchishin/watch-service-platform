@@ -20,6 +20,7 @@ from telegram_bot.handlers import otk
 from telegram_bot.handlers import urgent
 from telegram_bot.handlers import history
 from telegram_bot.handlers import employees
+from telegram_bot.handlers import analytics
 
 # Настройка логирования
 logging.basicConfig(
@@ -41,7 +42,8 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(urgent.router)
     dp.include_router(history.router)
     dp.include_router(employees.router)
-    
+    dp.include_router(analytics.router)
+
     logger.info("Dispatcher created with all routers")
     return dp
 

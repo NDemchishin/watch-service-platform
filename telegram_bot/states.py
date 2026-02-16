@@ -57,6 +57,13 @@ class History(StatesGroup):
     enter_comment = State()
 
 
+class Analytics(StatesGroup):
+    """Аналитика."""
+    menu = State()
+    select_period = State()
+    show_result = State()
+
+
 class Employees(StatesGroup):
     """Управление сотрудниками."""
     main_menu = State()
