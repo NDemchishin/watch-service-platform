@@ -66,11 +66,20 @@ def state():
 
 @pytest.fixture
 def mock_api():
-    """Мок API-клиента."""
-    with patch("telegram_bot.services.api_client.get_api_client") as mock:
-        api = AsyncMock()
-        mock.return_value = api
-        yield api
+    """Мок API-клиента — патчим во всех handler модулях где используется."""
+    api = AsyncMock()
+    patches = [
+        patch("telegram_bot.handlers.urgent.get_api_client", return_value=api),
+        patch("telegram_bot.handlers.history.get_api_client", return_value=api),
+        patch("telegram_bot.handlers.master.get_api_client", return_value=api),
+        patch("telegram_bot.handlers.otk.get_api_client", return_value=api),
+        patch("telegram_bot.services.api_client.get_api_client", return_value=api),
+    ]
+    for p in patches:
+        p.start()
+    yield api
+    for p in patches:
+        p.stop()
 
 
 @pytest.fixture(autouse=True)

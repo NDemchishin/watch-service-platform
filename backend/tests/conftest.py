@@ -1,23 +1,45 @@
 """
 Тестовая инфраструктура: фикстуры для SQLite in-memory и FastAPI TestClient.
 """
+import os
+
+# Отключаем Telegram бота при тестах — должно быть ДО импорта app/telegram_bot
+os.environ.pop("TELEGRAM_BOT_TOKEN", None)
+os.environ.pop("TELEGRAM_BOT_WEBHOOK_URL", None)
+os.environ["TELEGRAM_BOT_TOKEN"] = ""
+os.environ["TELEGRAM_BOT_WEBHOOK_URL"] = ""
+
+# Принудительно обнуляем config бота (мог быть уже загружен с реальным TOKEN)
+import telegram_bot.config
+telegram_bot.config.bot_config.TOKEN = ""
+telegram_bot.config.bot_config.WEBHOOK_URL = ""
+
 import pytest
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.pool import StaticPool
 from fastapi.testclient import TestClient
 
 from app.core.database import Base, get_db
-from app.main import app
+from app.main import app as fastapi_app
 from app.seeds.operation_types import seed_operation_types
 from app.seeds.return_reasons import seed_return_reasons
 
+# Импортируем все модели чтобы Base.metadata знал о них
+import app.models.receipt  # noqa: F401
+import app.models.employee  # noqa: F401
+import app.models.operation  # noqa: F401
+import app.models.polishing  # noqa: F401
+import app.models.return_  # noqa: F401
+import app.models.history  # noqa: F401
+import app.models.notification  # noqa: F401
 
-# SQLite in-memory для тестов
-TEST_DATABASE_URL = "sqlite://"
 
+# SQLite in-memory с StaticPool — одна БД для всех connections
 engine = create_engine(
-    TEST_DATABASE_URL,
+    "sqlite://",
     connect_args={"check_same_thread": False},
+    poolclass=StaticPool,
 )
 
 # Включаем поддержку FK в SQLite
@@ -34,15 +56,6 @@ TestingSessionLocal = sessionmaker(bind=engine)
 @pytest.fixture(autouse=True)
 def setup_database():
     """Создаёт все таблицы перед каждым тестом и удаляет после."""
-    # Импортируем все модели чтобы Base.metadata знал о них
-    import app.models.receipt  # noqa: F401
-    import app.models.employee  # noqa: F401
-    import app.models.operation  # noqa: F401
-    import app.models.polishing  # noqa: F401
-    import app.models.return_  # noqa: F401
-    import app.models.history  # noqa: F401
-    import app.models.notification  # noqa: F401
-
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)
@@ -75,10 +88,10 @@ def client(db_session: Session) -> TestClient:
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(fastapi_app, raise_server_exceptions=False) as c:
         yield c
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -90,10 +103,10 @@ def seeded_client(seeded_db: Session) -> TestClient:
         finally:
             pass
 
-    app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as c:
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(fastapi_app, raise_server_exceptions=False) as c:
         yield c
-    app.dependency_overrides.clear()
+    fastapi_app.dependency_overrides.clear()
 
 
 # --- Вспомогательные функции для создания тестовых данных ---

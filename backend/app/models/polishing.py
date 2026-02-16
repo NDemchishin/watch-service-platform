@@ -3,7 +3,7 @@
 """
 from datetime import datetime
 from sqlalchemy import Integer, String, Boolean, DateTime, Text, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -20,3 +20,5 @@ class PolishingDetails(Base):
     comment: Mapped[str] = mapped_column(Text, nullable=True)
     sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     returned_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
+
+    polisher = relationship("Employee", lazy="select")
