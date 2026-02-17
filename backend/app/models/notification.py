@@ -14,7 +14,7 @@ class Notification(Base):
     __tablename__ = "notifications"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
+    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False, index=True)
     notification_type: Mapped[str] = mapped_column(String, nullable=False)  # deadline_today, deadline_1h
     scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)

@@ -14,7 +14,7 @@ class PolishingDetails(Base):
     __tablename__ = "polishing_details"
 
     receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), primary_key=True)
-    polisher_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=False)
+    polisher_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=False, index=True)
     metal_type: Mapped[str] = mapped_column(String, nullable=False)
     bracelet: Mapped[bool] = mapped_column(Boolean, default=False)
     difficult: Mapped[bool] = mapped_column(Boolean, default=False)

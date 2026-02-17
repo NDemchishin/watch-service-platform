@@ -14,7 +14,7 @@ class HistoryEvent(Base):
     __tablename__ = "history_events"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
+    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False, index=True)
     event_type: Mapped[str] = mapped_column(String, nullable=False)
     payload: Mapped[dict] = mapped_column(JSON, nullable=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=True)

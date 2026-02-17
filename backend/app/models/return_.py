@@ -14,7 +14,7 @@ class Return(Base):
     __tablename__ = "returns"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
+    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False, index=True)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
 
@@ -38,7 +38,7 @@ class ReturnReasonLink(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     return_id: Mapped[int] = mapped_column(ForeignKey("returns.id"), nullable=False)
     reason_id: Mapped[int] = mapped_column(ForeignKey("return_reasons.id"), nullable=False)
-    guilty_employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=True)
+    guilty_employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=True, index=True)
 
     reason = relationship("ReturnReason", lazy="select")
     guilty_employee = relationship("Employee", lazy="select")

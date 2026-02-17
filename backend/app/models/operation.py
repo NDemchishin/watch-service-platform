@@ -23,9 +23,9 @@ class Operation(Base):
     __tablename__ = "operations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
+    receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False, index=True)
     operation_type_id: Mapped[int] = mapped_column(ForeignKey("operation_types.id"), nullable=False)
-    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=False)
+    employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=False, index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
 
     operation_type = relationship("OperationType", lazy="select")
