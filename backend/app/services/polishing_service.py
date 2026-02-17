@@ -14,7 +14,7 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.polishing import PolishingDetailsCreate, PolishingDetailsUpdate
 from app.core.exceptions import NotFoundException, ValidationException
-from app.core.utils import sanitize_text
+from app.core.utils import sanitize_text, now_moscow
 
 
 class PolishingService:
@@ -131,7 +131,7 @@ class PolishingService:
         telegram_username: Optional[str] = None,
     ) -> PolishingDetails:
         """Отметить возврат из полировки с логированием (атомарный UPDATE)."""
-        actual_returned_at = returned_at or datetime.utcnow()
+        actual_returned_at = returned_at or now_moscow()
 
         result = self.db.execute(
             update(PolishingDetails)
@@ -168,7 +168,7 @@ class PolishingService:
     
     def get_stats(self, polisher_id: int) -> dict:
         """Получить статистику по полировщику."""
-        now = datetime.utcnow()
+        now = now_moscow()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         week_start = today_start - timedelta(days=today_start.weekday())
         month_start = today_start.replace(day=1)

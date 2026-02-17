@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class OperationType(Base):
@@ -25,7 +26,7 @@ class Operation(Base):
     receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
     operation_type_id: Mapped[int] = mapped_column(ForeignKey("operation_types.id"), nullable=False)
     employee_id: Mapped[int] = mapped_column(ForeignKey("employees.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
 
     operation_type = relationship("OperationType", lazy="select")
     employee = relationship("Employee", lazy="select")

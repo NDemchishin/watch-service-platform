@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, DateTime
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class Receipt(Base):
@@ -14,5 +15,5 @@ class Receipt(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     receipt_number: Mapped[str] = mapped_column(String, unique=True, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
     current_deadline: Mapped[datetime] = mapped_column(DateTime, nullable=True)

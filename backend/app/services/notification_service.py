@@ -10,6 +10,7 @@ from sqlalchemy import and_
 
 from app.models.notification import Notification
 from app.models.receipt import Receipt
+from app.core.utils import now_moscow
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +35,7 @@ class NotificationService:
 
         # Уведомление в 10:00 в день дедлайна
         day_start = deadline.replace(hour=10, minute=0, second=0, microsecond=0)
-        if day_start > datetime.utcnow():
+        if day_start > now_moscow():
             notif_today = Notification(
                 receipt_id=receipt_id,
                 notification_type="deadline_today",
@@ -45,7 +46,7 @@ class NotificationService:
 
         # Уведомление за 1 час до дедлайна
         one_hour_before = deadline - timedelta(hours=1)
-        if one_hour_before > datetime.utcnow():
+        if one_hour_before > now_moscow():
             notif_1h = Notification(
                 receipt_id=receipt_id,
                 notification_type="deadline_1h",
@@ -78,7 +79,7 @@ class NotificationService:
 
     def get_pending(self) -> list[Notification]:
         """Получает неотправленные уведомления, время которых наступило."""
-        now = datetime.utcnow()
+        now = now_moscow()
         return (
             self.db.query(Notification)
             .filter(
@@ -95,7 +96,7 @@ class NotificationService:
         """Отмечает уведомление как отправленное."""
         notif = self.db.query(Notification).filter(Notification.id == notification_id).first()
         if notif:
-            notif.sent_at = datetime.utcnow()
+            notif.sent_at = now_moscow()
             self.db.flush()
 
     def get_receipt_for_notification(self, receipt_id: int) -> Optional[Receipt]:

@@ -11,6 +11,7 @@ from app.models.operation import Operation, OperationType
 from app.models.return_ import Return, ReturnReason, ReturnReasonLink
 from app.models.polishing import PolishingDetails
 from app.models.employee import Employee
+from app.core.utils import now_moscow
 
 
 class AnalyticsService:
@@ -25,7 +26,7 @@ class AnalyticsService:
         """Возвращает начало периода или None для 'all'."""
         if period == "all":
             return None
-        now = datetime.utcnow()
+        now = now_moscow()
         today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
         if period == "day":
             return today_start
@@ -343,7 +344,7 @@ class AnalyticsService:
                 .all()
             )
             in_progress_hours = 0.0
-            now = datetime.utcnow()
+            now = now_moscow()
             for p in in_progress_q:
                 delta = now - p.sent_at
                 in_progress_hours += delta.total_seconds() / 3600

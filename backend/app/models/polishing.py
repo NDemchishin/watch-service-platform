@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, Boolean, DateTime, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class PolishingDetails(Base):
@@ -18,7 +19,7 @@ class PolishingDetails(Base):
     bracelet: Mapped[bool] = mapped_column(Boolean, default=False)
     difficult: Mapped[bool] = mapped_column(Boolean, default=False)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
-    sent_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    sent_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
     returned_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
 
     polisher = relationship("Employee", lazy="select")

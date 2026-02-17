@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, DateTime, Boolean, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class Notification(Base):
@@ -18,4 +19,4 @@ class Notification(Base):
     scheduled_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
     sent_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)
     is_cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)

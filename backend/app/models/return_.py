@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, DateTime, Text, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class Return(Base):
@@ -15,7 +16,7 @@ class Return(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     receipt_id: Mapped[int] = mapped_column(ForeignKey("receipts.id"), nullable=False)
     comment: Mapped[str] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
 
     reasons = relationship("ReturnReasonLink", lazy="select")
 

@@ -9,15 +9,17 @@ MOSCOW_TZ = ZoneInfo("Europe/Moscow")
 
 
 def now_moscow() -> datetime:
-    """Текущее время в московском часовом поясе."""
-    return datetime.now(MOSCOW_TZ)
+    """Текущее время в московском часовом поясе (naive для совместимости с SQLite)."""
+    return datetime.now(MOSCOW_TZ).replace(tzinfo=None)
 
 
 def format_datetime(dt: datetime) -> str:
     """Форматирует datetime в московское время (ДД.ММ.ГГГГ ЧЧ:ММ)."""
     if dt is None:
         return "—"
-    return dt.astimezone(MOSCOW_TZ).strftime("%d.%m.%Y %H:%M")
+    if dt.tzinfo is not None:
+        dt = dt.astimezone(MOSCOW_TZ)
+    return dt.strftime("%d.%m.%Y %H:%M")
 
 
 def sanitize_text(text: str | None, max_length: int = 1000) -> str | None:

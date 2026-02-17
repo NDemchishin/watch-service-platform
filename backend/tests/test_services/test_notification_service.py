@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from app.models.receipt import Receipt
 from app.models.notification import Notification
 from app.services.notification_service import NotificationService
+from app.core.utils import now_moscow
 
 
 class TestNotificationService:
@@ -19,7 +20,7 @@ class TestNotificationService:
     def test_schedule_notifications(self, db_session):
         receipt = self._create_receipt(db_session)
         service = NotificationService(db_session)
-        deadline = datetime.utcnow() + timedelta(days=2)
+        deadline = now_moscow() + timedelta(days=2)
 
         notifications = service.schedule_notifications(receipt.id, deadline)
         assert len(notifications) == 2
@@ -29,7 +30,7 @@ class TestNotificationService:
     def test_cancel_notifications(self, db_session):
         receipt = self._create_receipt(db_session)
         service = NotificationService(db_session)
-        deadline = datetime.utcnow() + timedelta(days=2)
+        deadline = now_moscow() + timedelta(days=2)
         service.schedule_notifications(receipt.id, deadline)
 
         count = service.cancel_notifications(receipt.id)
@@ -47,7 +48,7 @@ class TestNotificationService:
         past_notif = Notification(
             receipt_id=receipt.id,
             notification_type="deadline_today",
-            scheduled_at=datetime.utcnow() - timedelta(hours=1),
+            scheduled_at=now_moscow() - timedelta(hours=1),
         )
         db_session.add(past_notif)
         db_session.commit()
@@ -62,8 +63,8 @@ class TestNotificationService:
         notif = Notification(
             receipt_id=receipt.id,
             notification_type="deadline_today",
-            scheduled_at=datetime.utcnow() - timedelta(hours=1),
-            sent_at=datetime.utcnow(),  # Уже отправлено
+            scheduled_at=now_moscow() - timedelta(hours=1),
+            sent_at=now_moscow(),  # Уже отправлено
         )
         db_session.add(notif)
         db_session.commit()
@@ -78,7 +79,7 @@ class TestNotificationService:
         notif = Notification(
             receipt_id=receipt.id,
             notification_type="deadline_today",
-            scheduled_at=datetime.utcnow() - timedelta(hours=1),
+            scheduled_at=now_moscow() - timedelta(hours=1),
             is_cancelled=True,
         )
         db_session.add(notif)
@@ -94,7 +95,7 @@ class TestNotificationService:
         notif = Notification(
             receipt_id=receipt.id,
             notification_type="deadline_today",
-            scheduled_at=datetime.utcnow() - timedelta(hours=1),
+            scheduled_at=now_moscow() - timedelta(hours=1),
         )
         db_session.add(notif)
         db_session.commit()
@@ -109,10 +110,10 @@ class TestNotificationService:
         receipt = self._create_receipt(db_session)
         service = NotificationService(db_session)
 
-        deadline1 = datetime.utcnow() + timedelta(days=2)
+        deadline1 = now_moscow() + timedelta(days=2)
         service.schedule_notifications(receipt.id, deadline1)
 
-        deadline2 = datetime.utcnow() + timedelta(days=5)
+        deadline2 = now_moscow() + timedelta(days=5)
         new_notifs = service.schedule_notifications(receipt.id, deadline2)
 
         # Старые отменены, новые созданы

@@ -6,6 +6,7 @@ from sqlalchemy import Integer, String, DateTime, BigInteger, ForeignKey, JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
+from app.core.utils import now_moscow
 
 
 class HistoryEvent(Base):
@@ -18,4 +19,4 @@ class HistoryEvent(Base):
     payload: Mapped[dict] = mapped_column(JSON, nullable=True)
     telegram_id: Mapped[int] = mapped_column(BigInteger, nullable=True)
     telegram_username: Mapped[str] = mapped_column(String, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now_moscow)
