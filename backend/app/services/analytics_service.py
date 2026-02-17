@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import func, and_, case
+from sqlalchemy import func, and_, case, extract, DateTime
 
 from app.models.operation import Operation, OperationType
 from app.models.return_ import Return, ReturnReason, ReturnReasonLink
@@ -284,8 +284,12 @@ class AnalyticsService:
         - в работе / завершено
         - breakdown: сложные / простые, с браслетом / без
         - среднее время полировки
+
+        Single GROUP BY query — no N+1.
         """
-        # Все полировки, сгруппированные по полировщику
+        now = now_moscow()
+
+        # Single query: counts + hours via SQL aggregation
         polishers_q = (
             self.db.query(
                 PolishingDetails.polisher_id,
@@ -309,6 +313,26 @@ class AnalyticsService:
                 func.sum(
                     case((PolishingDetails.bracelet == False, 1), else_=0)
                 ).label("without_bracelet"),
+                # Total hours for completed polishings (returned_at - sent_at)
+                func.sum(
+                    case(
+                        (
+                            PolishingDetails.returned_at.isnot(None),
+                            extract("epoch", PolishingDetails.returned_at - PolishingDetails.sent_at) / 3600,
+                        ),
+                        else_=0,
+                    )
+                ).label("completed_hours"),
+                # Total hours for in-progress polishings (now - sent_at)
+                func.sum(
+                    case(
+                        (
+                            PolishingDetails.returned_at.is_(None),
+                            extract("epoch", func.cast(now, DateTime) - PolishingDetails.sent_at) / 3600,
+                        ),
+                        else_=0,
+                    )
+                ).label("in_progress_hours"),
             )
             .join(Employee, PolishingDetails.polisher_id == Employee.id)
             .group_by(PolishingDetails.polisher_id, Employee.name)
@@ -317,37 +341,10 @@ class AnalyticsService:
 
         polishers = []
         for row in polishers_q:
-            # Вычисляем часы для завершённых полировок
-            hours_q = (
-                self.db.query(PolishingDetails)
-                .filter(
-                    PolishingDetails.polisher_id == row.polisher_id,
-                    PolishingDetails.returned_at.isnot(None),
-                )
-                .all()
-            )
-            total_hours = 0.0
-            for p in hours_q:
-                delta = p.returned_at - p.sent_at
-                total_hours += delta.total_seconds() / 3600
-
             completed = int(row.completed or 0)
-            avg_hours = round(total_hours / completed, 2) if completed > 0 else None
-
-            # Для незавершённых — считаем часы от sent_at до now
-            in_progress_q = (
-                self.db.query(PolishingDetails)
-                .filter(
-                    PolishingDetails.polisher_id == row.polisher_id,
-                    PolishingDetails.returned_at.is_(None),
-                )
-                .all()
-            )
-            in_progress_hours = 0.0
-            now = now_moscow()
-            for p in in_progress_q:
-                delta = now - p.sent_at
-                in_progress_hours += delta.total_seconds() / 3600
+            completed_hours = float(row.completed_hours or 0)
+            ip_hours = float(row.in_progress_hours or 0)
+            avg_hours = round(completed_hours / completed, 2) if completed > 0 else None
 
             polishers.append(
                 {
@@ -355,7 +352,7 @@ class AnalyticsService:
                     "employee_name": row.name,
                     "in_progress": int(row.in_progress or 0),
                     "completed": completed,
-                    "total_hours": round(total_hours + in_progress_hours, 2),
+                    "total_hours": round(completed_hours + ip_hours, 2),
                     "simple_count": int(row.simple_count or 0),
                     "difficult_count": int(row.difficult_count or 0),
                     "with_bracelet": int(row.with_bracelet or 0),
