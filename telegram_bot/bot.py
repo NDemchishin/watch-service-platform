@@ -4,9 +4,12 @@
 """
 import logging
 import asyncio
-from aiogram import Bot, Dispatcher
+from typing import Any, Awaitable, Callable
+
+from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.types import TelegramObject
 
 from telegram_bot.config import bot_config
 from telegram_bot.states import MainMenu
@@ -30,6 +33,24 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+class ErrorHandlerMiddleware(BaseMiddleware):
+    """Глобальный middleware для обработки ошибок в хендлерах."""
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        try:
+            return await handler(event, data)
+        except Exception as e:
+            logger.exception("Handler error: %s", e)
+            state = data.get("state")
+            if state:
+                await state.clear()
+
+
 def create_dispatcher() -> Dispatcher:
     """Создает и настраивает диспетчер."""
     dp = Dispatcher()
@@ -43,6 +64,10 @@ def create_dispatcher() -> Dispatcher:
     dp.include_router(history.router)
     dp.include_router(employees.router)
     dp.include_router(analytics.router)
+
+    # Глобальный middleware для обработки ошибок
+    dp.message.middleware(ErrorHandlerMiddleware())
+    dp.callback_query.middleware(ErrorHandlerMiddleware())
 
     logger.info("Dispatcher created with all routers")
     return dp

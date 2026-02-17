@@ -5,7 +5,7 @@
 import logging
 from aiogram import Router, F
 from aiogram.types import CallbackQuery, Message
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import MainMenu
@@ -80,12 +80,37 @@ async def handle_back(callback: CallbackQuery, state: FSMContext) -> None:
         await show_main_menu(callback, state)
 
 
+@router.message(Command("cancel"), StateFilter("*"))
+async def cmd_cancel(message: Message, state: FSMContext) -> None:
+    """Глобальный обработчик /cancel — отменяет любое активное действие."""
+    current = await state.get_state()
+    if current is None:
+        await message.answer("Нет активного действия для отмены.")
+        return
+    await state.clear()
+    await message.answer(
+        text="Действие отменено.\n\nВыберите действие:",
+        reply_markup=get_main_menu_keyboard()
+    )
+
+
 @router.callback_query(F.data == "cancel")
 async def handle_cancel(callback: CallbackQuery, state: FSMContext) -> None:
-    """Обработка отмены действия."""
+    """Обработка отмены действия (inline кнопка)."""
     await state.clear()
     await callback.message.edit_text(
         text="Действие отменено.\n\nВыберите действие:",
         reply_markup=get_main_menu_keyboard()
     )
     await callback.answer("Действие отменено")
+
+
+@router.callback_query(F.data == "cancel_action")
+async def handle_cancel_action(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработка отмены подтверждения действия."""
+    await state.clear()
+    await callback.message.edit_text(
+        text="Действие отменено.\n\nВыберите действие:",
+        reply_markup=get_main_menu_keyboard()
+    )
+    await callback.answer("Отменено")
