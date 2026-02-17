@@ -5,7 +5,7 @@ import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
-from sqlalchemy import desc
+from sqlalchemy import asc, desc, func
 
 from app.models.history import HistoryEvent
 from app.schemas.history import HistoryEventCreate
@@ -33,12 +33,27 @@ class HistoryService:
         return (
             self.db.query(HistoryEvent)
             .filter(HistoryEvent.receipt_id == receipt_id)
-            .order_by(desc(HistoryEvent.created_at))
+            .order_by(asc(HistoryEvent.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
-    
+
+    def count_by_receipt(self, receipt_id: int) -> int:
+        """Получить общее количество событий по квитанции."""
+        return (
+            self.db.query(func.count(HistoryEvent.id))
+            .filter(HistoryEvent.receipt_id == receipt_id)
+            .scalar()
+        )
+
+    def count_all(self, event_type: str | None = None) -> int:
+        """Получить общее количество событий с опциональной фильтрацией."""
+        query = self.db.query(func.count(HistoryEvent.id))
+        if event_type:
+            query = query.filter(HistoryEvent.event_type == event_type)
+        return query.scalar()
+
     def get_all(
         self,
         skip: int = 0,

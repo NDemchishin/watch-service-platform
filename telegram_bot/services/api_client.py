@@ -439,13 +439,19 @@ class APIClient:
         )
 
     # ===== History =====
-    async def get_receipt_history(self, receipt_id: int) -> list[dict]:
-        """Получает историю квитанции."""
-        response = await self._request(
+    async def get_receipt_history(
+        self, receipt_id: int, skip: int = 0, limit: int = 8
+    ) -> dict:
+        """Получает историю квитанции с пагинацией.
+
+        Returns:
+            dict с ключами "items" (list[dict]) и "total" (int).
+        """
+        return await self._request(
             "GET",
-            f"/history/receipt/{receipt_id}"
+            f"/history/receipt/{receipt_id}",
+            params={"skip": skip, "limit": limit},
         )
-        return self._unwrap_paginated(response)
 
     async def add_history_event(
         self,

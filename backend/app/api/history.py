@@ -32,10 +32,11 @@ def list_history(
     """Получить список событий истории."""
     service = HistoryService(db)
     events = service.get_all(skip=skip, limit=limit, event_type=event_type)
-    
+    total = service.count_all(event_type=event_type)
+
     return HistoryEventListResponse(
         items=[HistoryEventResponse.model_validate(e) for e in events],
-        total=len(events),
+        total=total,
     )
 
 
@@ -64,10 +65,11 @@ def get_history_by_receipt(
     """Получить историю событий по квитанции."""
     service = HistoryService(db)
     events = service.get_by_receipt(receipt_id, skip=skip, limit=limit)
-    
+    total = service.count_by_receipt(receipt_id)
+
     return HistoryEventListResponse(
         items=[HistoryEventResponse.model_validate(e) for e in events],
-        total=len(events),
+        total=total,
     )
 
 

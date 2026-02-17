@@ -4,9 +4,12 @@
 """
 import logging
 import httpx
+from contextlib import suppress
 from datetime import datetime
 from aiogram import Router, F
-from aiogram.types import CallbackQuery, Message
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.filters.callback_data import CallbackData
+from aiogram.types import CallbackQuery, Message, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import History
@@ -20,6 +23,14 @@ from telegram_bot.utils import format_datetime, push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+ITEMS_PER_PAGE = 8
+
+
+class HistoryPage(CallbackData, prefix="hp"):
+    """Callback для пагинации истории. Формат: hp:{page}:{receipt_id}"""
+    page: int
+    receipt_id: int
 
 # Человекочитаемые названия типов событий
 EVENT_TYPE_LABELS = {
@@ -71,6 +82,51 @@ def _format_event(event: dict) -> str:
     return label
 
 
+def _build_history_keyboard(
+    page: int,
+    total_pages: int,
+    receipt_id: int,
+) -> InlineKeyboardMarkup:
+    """Клавиатура истории с пагинацией и кнопками действий."""
+    rows: list[list[InlineKeyboardButton]] = []
+
+    # Ряд пагинации — ТОЛЬКО если больше 1 страницы
+    if total_pages > 1:
+        nav_buttons: list[InlineKeyboardButton] = []
+        if page > 0:
+            nav_buttons.append(
+                InlineKeyboardButton(
+                    text="◀",
+                    callback_data=HistoryPage(page=page - 1, receipt_id=receipt_id).pack(),
+                )
+            )
+        nav_buttons.append(
+            InlineKeyboardButton(
+                text=f"{page + 1}/{total_pages}",
+                callback_data="noop",
+            )
+        )
+        if page < total_pages - 1:
+            nav_buttons.append(
+                InlineKeyboardButton(
+                    text="▶",
+                    callback_data=HistoryPage(page=page + 1, receipt_id=receipt_id).pack(),
+                )
+            )
+        rows.append(nav_buttons)
+
+    # Кнопки действий
+    rows.append([InlineKeyboardButton(text="✏️ Изменить срок", callback_data="hist:edit_deadline")])
+    rows.append([InlineKeyboardButton(text="👨‍🔧 Сменить мастера", callback_data="hist:change_master")])
+    rows.append([InlineKeyboardButton(text="💬 Добавить комментарий", callback_data="hist:add_comment")])
+    rows.append([
+        InlineKeyboardButton(text="⬅ Назад", callback_data="back:history"),
+        InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
 @router.callback_query(F.data == "menu:history")
 async def start_history(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало просмотра истории."""
@@ -108,9 +164,10 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
         
         # Получаем историю
-        history = await get_api_client().get_receipt_history(receipt_id)
-        
-        await show_history(message, state, receipt, history)
+        history_response = await get_api_client().get_receipt_history(
+            receipt_id, skip=0, limit=ITEMS_PER_PAGE
+        )
+        await show_history(message, state, receipt, history_response, page=0)
         
     except ValueError:
         await message.answer(
@@ -144,64 +201,59 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
 
 
-async def show_history(message_or_callback, state, receipt, history) -> None:
-    """Показывает историю квитанции."""
+async def show_history(
+    message_or_callback,
+    state: FSMContext,
+    receipt: dict,
+    history_response: dict,
+    page: int = 0,
+) -> None:
+    """Показывает страницу истории квитанции."""
     receipt_number = receipt.get("receipt_number", "Unknown")
     receipt_id = receipt.get("id")
-    
     deadline_str = format_datetime(receipt.get("current_deadline"))
-    
-    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
-    keyboard = InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
-                InlineKeyboardButton(text="✏️ Изменить срок", callback_data="hist:edit_deadline"),
-            ],
-            [
-                InlineKeyboardButton(text="👨‍🔧 Сменить мастера", callback_data="hist:change_master"),
-            ],
-            [
-                InlineKeyboardButton(text="💬 Добавить комментарий", callback_data="hist:add_comment"),
-            ],
-            [
-                InlineKeyboardButton(text="⬅ Назад", callback_data="back:history"),
-                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
-            ],
-        ]
-    )
-    
-    if not history:
-        message_text = f"📜 История квитанции №{receipt_number}\n\n"
-        message_text += f"📅 Дедлайн: {deadline_str}\n\n"
-        message_text += "История пуста."
+
+    items = history_response.get("items", [])
+    total = history_response.get("total", 0)
+    total_pages = max(1, -(-total // ITEMS_PER_PAGE))  # ceil division
+
+    if not items and total == 0:
+        message_text = (
+            f"📜 История квитанции №{receipt_number}\n\n"
+            f"📅 Дедлайн: {deadline_str}\n\n"
+            f"История пуста."
+        )
+        keyboard = _build_history_keyboard(0, 1, receipt_id)
     else:
-        message_text = f"📜 История квитанции №{receipt_number}\n\n"
-        message_text += f"📅 Дедлайн: {deadline_str}\n"
-        message_text += f"📊 Всего событий: {len(history)}\n\n"
-        message_text += "Последние события:\n"
-        
-        for event in history[:10]:  # Показываем последние 10
-            event_type = event.get("event_type", "unknown")
-            time_str = format_datetime(event.get("created_at", ""), fmt="%d.%m %H:%M")
+        message_text = (
+            f"📜 История квитанции №{receipt_number}\n\n"
+            f"📅 Дедлайн: {deadline_str}\n"
+            f"📊 Всего событий: {total}\n"
+        )
+
+        if total_pages > 1:
+            message_text += f"📄 Страница {page + 1} из {total_pages}\n"
+
+        message_text += "\n"
+
+        for event in items:
+            time_str = format_datetime(event.get("created_at", ""), fmt="%d.%m %H:%M:%S")
             label = _format_event(event)
             message_text += f"• {label} — {time_str}\n"
-        
-        if len(history) > 10:
-            message_text += f"\n... и ещё {len(history) - 10} событий"
-    
-    # Проверяем тип объекта для ответа
+
+        keyboard = _build_history_keyboard(page, total_pages, receipt_id)
+
     if isinstance(message_or_callback, CallbackQuery):
         await message_or_callback.message.edit_text(
             text=message_text,
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
         await state.set_state(History.show_history)
         await message_or_callback.answer()
     else:
         await message_or_callback.answer(
             text=message_text,
-            reply_markup=keyboard
+            reply_markup=keyboard,
         )
         await state.set_state(History.show_history)
 
@@ -430,8 +482,10 @@ async def skip_comment(callback: CallbackQuery, state: FSMContext) -> None:
 
     try:
         receipt = await get_api_client().get_receipt(receipt_id)
-        history = await get_api_client().get_receipt_history(receipt_id)
-        await show_history(callback, state, receipt, history)
+        history_response = await get_api_client().get_receipt_history(
+            receipt_id, skip=0, limit=ITEMS_PER_PAGE
+        )
+        await show_history(callback, state, receipt, history_response, page=0)
     except Exception as e:
         logger.exception(f"Error returning to history after skip: {e}")
         await callback.message.edit_text(
@@ -494,6 +548,68 @@ async def process_comment(message: Message, state: FSMContext) -> None:
         )
     
     await state.clear()
+
+
+@router.callback_query(HistoryPage.filter())
+async def on_history_page(callback: CallbackQuery, callback_data: HistoryPage, state: FSMContext) -> None:
+    """Переключение страницы истории."""
+    page = callback_data.page
+    receipt_id = callback_data.receipt_id
+
+    try:
+        receipt = await get_api_client().get_receipt(receipt_id)
+        history_response = await get_api_client().get_receipt_history(
+            receipt_id,
+            skip=page * ITEMS_PER_PAGE,
+            limit=ITEMS_PER_PAGE,
+        )
+
+        receipt_number = receipt.get("receipt_number", "Unknown")
+        deadline_str = format_datetime(receipt.get("current_deadline"))
+
+        items = history_response.get("items", [])
+        total = history_response.get("total", 0)
+        total_pages = max(1, -(-total // ITEMS_PER_PAGE))
+
+        message_text = (
+            f"📜 История квитанции №{receipt_number}\n\n"
+            f"📅 Дедлайн: {deadline_str}\n"
+            f"📊 Всего событий: {total}\n"
+        )
+
+        if total_pages > 1:
+            message_text += f"📄 Страница {page + 1} из {total_pages}\n"
+
+        message_text += "\n"
+
+        for event in items:
+            time_str = format_datetime(event.get("created_at", ""), fmt="%d.%m %H:%M:%S")
+            label = _format_event(event)
+            message_text += f"• {label} — {time_str}\n"
+
+        keyboard = _build_history_keyboard(page, total_pages, receipt_id)
+
+        with suppress(TelegramBadRequest):
+            await callback.message.edit_text(
+                text=message_text,
+                reply_markup=keyboard,
+            )
+
+    except Exception as e:
+        logger.exception(f"Error paginating history: {e}")
+        with suppress(TelegramBadRequest):
+            await callback.message.edit_text(
+                text="❌ Ошибка при загрузке страницы истории.",
+                reply_markup=get_back_home_keyboard("history"),
+            )
+
+    await callback.answer()
+
+
+@router.callback_query(F.data == "noop")
+async def noop_handler(callback: CallbackQuery) -> None:
+    """Пустой обработчик для неактивных кнопок."""
+    await callback.answer()
 
 
 @router.callback_query(F.data == "back:history")

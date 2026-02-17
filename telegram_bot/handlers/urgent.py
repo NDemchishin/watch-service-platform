@@ -93,12 +93,12 @@ async def view_urgent_receipt(callback: CallbackQuery, state: FSMContext) -> Non
     
     try:
         receipt = await get_api_client().get_receipt(receipt_id)
-        history = await get_api_client().get_receipt_history(receipt_id)
-        
+        history_response = await get_api_client().get_receipt_history(receipt_id, skip=0, limit=1)
+
         deadline_str = format_datetime(receipt.get("current_deadline"))
-        
+
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        
+
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
@@ -116,13 +116,14 @@ async def view_urgent_receipt(callback: CallbackQuery, state: FSMContext) -> Non
                 ],
             ]
         )
-        
+
         # Формируем краткую информацию
         receipt_number = receipt.get("receipt_number", "Unknown")
-        
+        total_events = history_response.get("total", 0)
+
         message_text = f"🕒 Квитанция №{receipt_number}\n\n"
         message_text += f"📅 Срок готовности: {deadline_str}\n"
-        message_text += f"📋 Всего событий в истории: {len(history)}\n"
+        message_text += f"📋 Всего событий в истории: {total_events}\n"
         
         await callback.message.edit_text(
             text=message_text,
@@ -270,15 +271,16 @@ async def show_urgent_history(callback: CallbackQuery, state: FSMContext) -> Non
     
     try:
         receipt = await get_api_client().get_receipt(receipt_id)
-        history = await get_api_client().get_receipt_history(receipt_id)
-        
+        history_response = await get_api_client().get_receipt_history(receipt_id, skip=0, limit=100)
+
         receipt_number = receipt.get("receipt_number", "Unknown")
-        
-        if not history:
+        items = history_response.get("items", [])
+
+        if not items:
             message_text = f"📜 История квитанции №{receipt_number}\n\nИстория пуста."
         else:
             message_text = f"📜 История квитанции №{receipt_number}\n\n"
-            for event in history:
+            for event in items:
                 event_type = event.get("event_type", "unknown")
                 created_at = event.get("created_at", "")
                 message_text += f"• {event_type} - {created_at[:16]}\n"
