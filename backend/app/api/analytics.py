@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.services.analytics_service import AnalyticsService
 from app.schemas.analytics import (
     PeriodFilter,
@@ -18,7 +19,11 @@ from app.schemas.analytics import (
     ReturnsSummaryResponse,
 )
 
-router = APIRouter(prefix="/analytics", tags=["analytics"])
+router = APIRouter(
+    prefix="/analytics",
+    tags=["analytics"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("/quality/assembly", response_model=AssemblyQualityResponse)

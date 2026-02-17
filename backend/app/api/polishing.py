@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.polishing import (
     PolishingDetailsCreate,
     PolishingDetailsResponse,
@@ -16,7 +17,11 @@ from app.schemas.polishing import (
 )
 from app.services.polishing_service import PolishingService
 
-router = APIRouter(prefix="/polishing", tags=["polishing"])
+router = APIRouter(
+    prefix="/polishing",
+    tags=["polishing"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("/in-progress", response_model=PolishingDetailsListResponse)

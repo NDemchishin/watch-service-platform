@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.operation import (
     OperationCreate,
     OperationResponse,
@@ -16,7 +17,11 @@ from app.schemas.operation import (
 )
 from app.services.operation_service import OperationService
 
-router = APIRouter(prefix="/operations", tags=["operations"])
+router = APIRouter(
+    prefix="/operations",
+    tags=["operations"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("/types", response_model=OperationTypeListResponse)

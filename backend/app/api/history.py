@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.history import (
     HistoryEventCreate,
     HistoryEventResponse,
@@ -14,7 +15,11 @@ from app.schemas.history import (
 )
 from app.services.history_service import HistoryService
 
-router = APIRouter(prefix="/history", tags=["history"])
+router = APIRouter(
+    prefix="/history",
+    tags=["history"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("", response_model=HistoryEventListResponse)

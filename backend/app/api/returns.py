@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.return_ import (
     ReturnCreate,
     ReturnResponse,
@@ -16,7 +17,11 @@ from app.schemas.return_ import (
 )
 from app.services.return_service import ReturnService
 
-router = APIRouter(prefix="/returns", tags=["returns"])
+router = APIRouter(
+    prefix="/returns",
+    tags=["returns"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("/reasons", response_model=ReturnReasonListResponse)

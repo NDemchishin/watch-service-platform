@@ -5,10 +5,15 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.notification import NotificationResponse, NotificationListResponse
 from app.services.notification_service import NotificationService
 
-router = APIRouter(prefix="/notifications", tags=["notifications"])
+router = APIRouter(
+    prefix="/notifications",
+    tags=["notifications"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("/pending", response_model=NotificationListResponse)

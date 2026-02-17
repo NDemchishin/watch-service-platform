@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.employee import (
     EmployeeCreate,
     EmployeeUpdate,
@@ -13,7 +14,11 @@ from app.schemas.employee import (
 )
 from app.services.employee_service import EmployeeService
 
-router = APIRouter(prefix="/employees", tags=["employees"])
+router = APIRouter(
+    prefix="/employees",
+    tags=["employees"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("", response_model=EmployeeListResponse)
