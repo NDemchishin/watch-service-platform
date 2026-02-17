@@ -8,3 +8,4 @@ python-dotenv
 aiogram>=3.0
 httpx
 tenacity
+redis

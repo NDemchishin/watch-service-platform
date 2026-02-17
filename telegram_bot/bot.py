@@ -4,11 +4,13 @@
 """
 import logging
 import asyncio
+from datetime import timedelta
 from typing import Any, Awaitable, Callable
 
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.fsm.storage.redis import RedisStorage
 from aiogram.types import TelegramObject
 
 from telegram_bot.config import bot_config
@@ -53,7 +55,12 @@ class ErrorHandlerMiddleware(BaseMiddleware):
 
 def create_dispatcher() -> Dispatcher:
     """Создает и настраивает диспетчер."""
-    dp = Dispatcher()
+    storage = RedisStorage.from_url(
+        bot_config.REDIS_URL,
+        state_ttl=timedelta(hours=24),
+        data_ttl=timedelta(hours=24),
+    )
+    dp = Dispatcher(storage=storage)
     
     # Подключаем роутеры в правильном порядке (от общего к частному)
     dp.include_router(menu.router)

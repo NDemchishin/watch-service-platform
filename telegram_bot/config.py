@@ -26,6 +26,9 @@ class BotConfig:
     # API ключ для авторизации запросов к бэкенду
     API_KEY: str = os.getenv("API_KEY", "")
 
+    # Redis URL для FSM storage
+    REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+
     # URL API бэкенда
     # Если не установлен, используем localhost (для Railway где бот и бэкенд в одном контейнере)
     API_BASE_URL: str = os.getenv("API_BASE_URL", "")
