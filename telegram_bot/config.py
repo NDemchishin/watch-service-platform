@@ -26,6 +26,9 @@ class BotConfig:
     # API ключ для авторизации запросов к бэкенду
     API_KEY: str = os.getenv("API_KEY", "")
 
+    # Webhook secret для верификации запросов от Telegram
+    WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+
     # Redis URL для FSM storage
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 

@@ -145,7 +145,11 @@ async def setup_webhook() -> None:
     # Route is: /webhook/telegram/webhook
     webhook_url = f"{base_url}/webhook/telegram/webhook"
 
-    await bot.set_webhook(url=webhook_url)
+    # Pass secret_token so Telegram sends X-Telegram-Bot-Api-Secret-Token header
+    webhook_kwargs = {"url": webhook_url}
+    if bot_config.WEBHOOK_SECRET:
+        webhook_kwargs["secret_token"] = bot_config.WEBHOOK_SECRET
+    await bot.set_webhook(**webhook_kwargs)
     logger.info(f"Webhook set to: {webhook_url}")
 
     # Запускаем фоновый scheduler уведомлений (только один раз)

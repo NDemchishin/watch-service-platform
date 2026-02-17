@@ -86,10 +86,11 @@ async def telegram_webhook(request: Request) -> JSONResponse:
     """
     global _bot_initialized
     
-    # Verify webhook secret
-    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
-    if secret != settings.TELEGRAM_WEBHOOK_SECRET:
-        raise HTTPException(status_code=403, detail="Invalid webhook secret")
+    # Verify webhook secret (skip if not configured)
+    if settings.TELEGRAM_WEBHOOK_SECRET:
+        secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+        if secret != settings.TELEGRAM_WEBHOOK_SECRET:
+            raise HTTPException(status_code=403, detail="Invalid webhook secret")
 
     try:
         # Получаем данные от Telegram
