@@ -8,7 +8,10 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import Employees
-from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
+from telegram_bot.keyboards.main_menu import (
+    get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard,
+    get_confirmation_keyboard,
+)
 from telegram_bot.services.api_client import get_api_client
 from telegram_bot.utils import push_nav
 
@@ -261,53 +264,111 @@ async def view_employee(callback: CallbackQuery, state: FSMContext) -> None:
 
 
 @router.callback_query(F.data.startswith("emp:activate:"))
-async def activate_employee(callback: CallbackQuery, state: FSMContext) -> None:
-    """Активация сотрудника."""
+async def confirm_activate_employee(callback: CallbackQuery, state: FSMContext) -> None:
+    """Подтверждение активации сотрудника."""
     employee_id = int(callback.data.split(":")[2])
-    
+
+    try:
+        employee = await get_api_client().get_employee(employee_id)
+        name = employee.get("name", "Unknown")
+        await state.update_data(pending_employee_id=employee_id, pending_employee_name=name)
+
+        await callback.message.edit_text(
+            text=f"Активировать сотрудника {name}?",
+            reply_markup=get_confirmation_keyboard("activate", str(employee_id))
+        )
+        await state.set_state(Employees.confirm_activate)
+
+    except Exception as e:
+        logger.error(f"Error fetching employee for activation: {e}")
+        await callback.message.edit_text(
+            text="❌ Ошибка при получении данных сотрудника.",
+            reply_markup=get_back_home_keyboard("employees")
+        )
+
+    await callback.answer()
+
+
+@router.callback_query(Employees.confirm_activate, F.data.startswith("confirm:activate:"))
+async def do_activate_employee(callback: CallbackQuery, state: FSMContext) -> None:
+    """Выполнение активации после подтверждения."""
+    employee_id = int(callback.data.split(":")[2])
+
     try:
         employee = await get_api_client().activate_employee(employee_id)
-        
+
         await callback.message.edit_text(
             text=f"✅ Сотрудник {employee.get('name')} активирован!",
             reply_markup=get_back_home_keyboard("employees")
         )
         logger.info(f"Employee {employee_id} activated")
-        
+
     except Exception as e:
         logger.error(f"Error activating employee: {e}")
         await callback.message.edit_text(
             text="❌ Ошибка при активации.",
             reply_markup=get_back_home_keyboard("employees")
         )
-    
+
     await state.clear()
     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("emp:deactivate:"))
-async def deactivate_employee(callback: CallbackQuery, state: FSMContext) -> None:
-    """Деактивация сотрудника."""
+async def confirm_deactivate_employee(callback: CallbackQuery, state: FSMContext) -> None:
+    """Подтверждение деактивации сотрудника."""
     employee_id = int(callback.data.split(":")[2])
-    
+
+    try:
+        employee = await get_api_client().get_employee(employee_id)
+        name = employee.get("name", "Unknown")
+        await state.update_data(pending_employee_id=employee_id, pending_employee_name=name)
+
+        await callback.message.edit_text(
+            text=f"Деактивировать сотрудника {name}?",
+            reply_markup=get_confirmation_keyboard("deactivate", str(employee_id))
+        )
+        await state.set_state(Employees.confirm_deactivate)
+
+    except Exception as e:
+        logger.error(f"Error fetching employee for deactivation: {e}")
+        await callback.message.edit_text(
+            text="❌ Ошибка при получении данных сотрудника.",
+            reply_markup=get_back_home_keyboard("employees")
+        )
+
+    await callback.answer()
+
+
+@router.callback_query(Employees.confirm_deactivate, F.data.startswith("confirm:deactivate:"))
+async def do_deactivate_employee(callback: CallbackQuery, state: FSMContext) -> None:
+    """Выполнение деактивации после подтверждения."""
+    employee_id = int(callback.data.split(":")[2])
+
     try:
         employee = await get_api_client().deactivate_employee(employee_id)
-        
+
         await callback.message.edit_text(
             text=f"🚫 Сотрудник {employee.get('name')} деактивирован!",
             reply_markup=get_back_home_keyboard("employees")
         )
         logger.info(f"Employee {employee_id} deactivated")
-        
+
     except Exception as e:
         logger.error(f"Error deactivating employee: {e}")
         await callback.message.edit_text(
             text="❌ Ошибка при деактивации.",
             reply_markup=get_back_home_keyboard("employees")
         )
-    
+
     await state.clear()
     await callback.answer()
+
+
+@router.callback_query(F.data == "cancel_action")
+async def cancel_action(callback: CallbackQuery, state: FSMContext) -> None:
+    """Отмена подтверждения — возврат в меню сотрудников."""
+    await employees_menu(callback, state)
 
 
 @router.callback_query(F.data == "back:employees")
