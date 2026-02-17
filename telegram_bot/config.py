@@ -23,6 +23,9 @@ class BotConfig:
         if id_str.strip()
     ]
 
+    # API ключ для авторизации запросов к бэкенду
+    API_KEY: str = os.getenv("API_KEY", "")
+
     # URL API бэкенда
     # Если не установлен, используем localhost (для Railway где бот и бэкенд в одном контейнере)
     API_BASE_URL: str = os.getenv("API_BASE_URL", "")

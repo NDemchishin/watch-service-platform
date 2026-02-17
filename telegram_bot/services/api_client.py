@@ -38,9 +38,10 @@ class APIClient:
         """Получает или создаёт HTTP клиент."""
         if self._client is None or self._client.is_closed:
             self._client = httpx.AsyncClient(
-                base_url=self.base_url, 
+                base_url=self.base_url,
                 timeout=30.0,
-                follow_redirects=True
+                follow_redirects=True,
+                headers={"X-API-Key": bot_config.API_KEY},
             )
             logger.debug("Created new HTTP client")
         return self._client
