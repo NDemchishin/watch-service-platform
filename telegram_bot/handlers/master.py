@@ -205,10 +205,10 @@ async def process_deadline(message: Message, state: FSMContext) -> None:
         if deadline < now:
             deadline = deadline.replace(year=now.year + 1)
         
-        await state.update_data(deadline=deadline)
+        await state.update_data(deadline=deadline.isoformat())
         await show_deadline_confirmation(message, state, deadline)
-        
-    except ValueError:
+
+    except (ValueError, TypeError):
         await message.answer(
             text="❌ Неверный формат.\n\n"
                  "Введите в формате: ДД.ММ ЧЧ:ММ\n"
@@ -258,7 +258,8 @@ async def confirm_assign_to_master(callback: CallbackQuery, state: FSMContext) -
         receipt_id = data.get("receipt_id")
         master_id = data.get("master_id")
         is_urgent = data.get("is_urgent", False)
-        deadline = data.get("deadline")
+        deadline_raw = data.get("deadline")
+        deadline = datetime.fromisoformat(deadline_raw) if deadline_raw else None
         
         # Выдаём часы мастеру
         result = await get_api_client().assign_to_master(
