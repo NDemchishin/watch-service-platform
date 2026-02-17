@@ -10,7 +10,10 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import History
-from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
+from telegram_bot.keyboards.main_menu import (
+    get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard,
+    get_optional_input_keyboard,
+)
 from telegram_bot.services.api_client import get_api_client
 from telegram_bot.services.notification_scheduler import send_notification_to_otk, NOTIFICATION_MESSAGES
 from telegram_bot.utils import format_datetime, push_nav
@@ -406,10 +409,29 @@ async def change_master(callback: CallbackQuery, state: FSMContext) -> None:
 async def start_add_comment(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало добавления комментария."""
     await callback.message.edit_text(
-        text="📜 Введите комментарий:",
-        reply_markup=get_back_keyboard("history")
+        text="📜 Введите комментарий или нажмите Пропустить:",
+        reply_markup=get_optional_input_keyboard("hist_comment", "history")
     )
     await state.set_state(History.enter_comment)
+    await callback.answer()
+
+
+@router.callback_query(F.data == "skip:hist_comment")
+async def skip_comment(callback: CallbackQuery, state: FSMContext) -> None:
+    """Пропуск комментария — возврат к истории."""
+    data = await state.get_data()
+    receipt_id = data.get("receipt_id")
+
+    try:
+        receipt = await get_api_client().get_receipt(receipt_id)
+        history = await get_api_client().get_receipt_history(receipt_id)
+        await show_history(callback, state, receipt, history)
+    except Exception as e:
+        logger.exception(f"Error returning to history after skip: {e}")
+        await callback.message.edit_text(
+            text="❌ Ошибка при возврате к истории.",
+            reply_markup=get_back_home_keyboard("history")
+        )
     await callback.answer()
 
 
@@ -421,14 +443,15 @@ async def process_comment(message: Message, state: FSMContext) -> None:
     receipt_id = data.get("receipt_id")
     receipt_number = data.get("receipt_number")
     user = message.from_user
-    
+
     if not comment:
         await message.answer(
-            text="❌ Комментарий не может быть пустым.",
-            reply_markup=get_back_keyboard("history")
+            text="📜 Комментарий не может быть пустым.\n\n"
+                 "Введите комментарий или нажмите Пропустить:",
+            reply_markup=get_optional_input_keyboard("hist_comment", "history")
         )
         return
-    
+
     try:
         await get_api_client().add_history_event(
             receipt_id=receipt_id,

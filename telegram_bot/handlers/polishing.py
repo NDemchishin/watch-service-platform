@@ -214,9 +214,6 @@ async def process_complex(callback: CallbackQuery, state: FSMContext) -> None:
 async def process_comment(message: Message, state: FSMContext) -> None:
     """Обработка комментария."""
     comment = message.text.strip()
-    if comment == "-":
-        comment = ""
-    
     await state.update_data(comment=comment)
     
     data = await state.get_data()
