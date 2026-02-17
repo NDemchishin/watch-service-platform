@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import Employees
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -18,6 +19,7 @@ router = Router()
 @router.callback_query(F.data == "menu:employees")
 async def employees_menu(callback: CallbackQuery, state: FSMContext) -> None:
     """Показывает меню сотрудников."""
+    await push_nav(state, "MainMenu.main", "employees_menu")
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
     
     keyboard = InlineKeyboardMarkup(

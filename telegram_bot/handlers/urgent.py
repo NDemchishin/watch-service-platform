@@ -13,7 +13,7 @@ from telegram_bot.states import Urgent
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard
 from telegram_bot.services.api_client import get_api_client
 from telegram_bot.services.notification_scheduler import send_notification_to_otk, NOTIFICATION_MESSAGES
-from telegram_bot.utils import format_datetime
+from telegram_bot.utils import format_datetime, push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -22,6 +22,7 @@ router = Router()
 @router.callback_query(F.data == "menu:urgent")
 async def show_urgent_list(callback: CallbackQuery, state: FSMContext) -> None:
     """Показывает список срочных часов."""
+    await push_nav(state, "MainMenu.main", "show_urgent_list")
     try:
         receipts = await get_api_client().get_urgent_receipts()
         
@@ -251,13 +252,14 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
                  "Например: 15.01 14:30",
             reply_markup=get_back_keyboard("urgent")
         )
+        return
     except Exception as e:
         logger.error(f"Error updating deadline: {e}")
         await message.answer(
             text="❌ Ошибка при изменении срока.",
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("urgent")
         )
-    
+
     await state.clear()
 
 
@@ -283,29 +285,28 @@ async def show_urgent_history(callback: CallbackQuery, state: FSMContext) -> Non
         
         await callback.message.edit_text(
             text=message_text,
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("urgent")
         )
-        
+
     except httpx.ConnectError:
         logger.exception("Connection error while fetching history")
         await callback.message.edit_text(
             text="❌ Сервер недоступен. Попробуйте позже.",
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("urgent")
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} while fetching history")
         await callback.message.edit_text(
             text="❌ Ошибка сервера при получении истории.",
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("urgent")
         )
     except Exception as e:
         logger.exception(f"Unexpected error fetching history: {e}")
         await callback.message.edit_text(
             text="❌ Непредвиденная ошибка при получении истории.",
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("urgent")
         )
-    
-    await state.clear()
+
     await callback.answer()
 
 

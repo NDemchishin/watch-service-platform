@@ -13,7 +13,7 @@ from telegram_bot.states import History
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
 from telegram_bot.services.notification_scheduler import send_notification_to_otk, NOTIFICATION_MESSAGES
-from telegram_bot.utils import format_datetime
+from telegram_bot.utils import format_datetime, push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -71,6 +71,7 @@ def _format_event(event: dict) -> str:
 @router.callback_query(F.data == "menu:history")
 async def start_history(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало просмотра истории."""
+    await push_nav(state, "MainMenu.main", "start_history")
     await callback.message.edit_text(
         text="📜 История по квитанции\n\n"
              "Введите номер квитанции:",
@@ -289,13 +290,14 @@ async def process_new_deadline(message: Message, state: FSMContext) -> None:
                  "Например: 15.01 14:30",
             reply_markup=get_back_keyboard("history")
         )
+        return
     except Exception as e:
         logger.error(f"Error updating deadline: {e}")
         await message.answer(
             text="❌ Ошибка при изменении срока.",
-            reply_markup=get_back_home_keyboard("main")
+            reply_markup=get_back_home_keyboard("history")
         )
-    
+
     await state.clear()
 
 

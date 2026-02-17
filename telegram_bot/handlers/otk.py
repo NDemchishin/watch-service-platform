@@ -11,6 +11,7 @@ from aiogram.fsm.context import FSMContext
 from telegram_bot.states import OTK
 from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -22,13 +23,13 @@ POLISHING_REASON_CODE = "polishing"
 @router.callback_query(F.data == "menu:otk")
 async def start_otk(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало работы с ОТК."""
-    await state.clear()
+    await push_nav(state, "MainMenu.main", "start_otk")
+    await state.set_state(OTK.waiting_for_receipt_number)
     await callback.message.edit_text(
         text="🔍 ОТК-проверка\n\n"
              "Введите номер квитанции:",
         reply_markup=get_back_keyboard("main")
     )
-    await state.set_state(OTK.waiting_for_receipt_number)
     await callback.answer()
 
 
@@ -71,6 +72,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
             ]
         )
 
+        await push_nav(state, "OTK.waiting_for_receipt_number", "process_receipt_number")
         await message.answer(
             text=f"🔍 Квитанция №{receipt_number}\n\n"
                  f"Выберите действие:",
@@ -342,7 +344,15 @@ async def select_guilty_role(callback: CallbackQuery, state: FSMContext) -> None
 async def select_guilty_employee(callback: CallbackQuery, state: FSMContext) -> None:
     """Выбран конкретный виновный сотрудник."""
     guilty_id = int(callback.data.split(":")[2])
-    await state.update_data(guilty_employee_id=guilty_id)
+    # Extract employee name from the button text
+    guilty_name = callback.data.split(":")[2]
+    if callback.message and callback.message.reply_markup:
+        for row in callback.message.reply_markup.inline_keyboard:
+            for btn in row:
+                if btn.callback_data == callback.data:
+                    guilty_name = btn.text
+                    break
+    await state.update_data(guilty_employee_id=guilty_id, guilty_employee_name=guilty_name)
     await _show_return_confirmation(callback, state)
     await callback.answer()
 
@@ -384,7 +394,8 @@ async def _show_return_confirmation(callback: CallbackQuery, state: FSMContext) 
     if guilty_id:
         role = data.get("guilty_role", "")
         role_name = "Полировщик" if role == "polisher" else "Сборщик"
-        text += f"\nВиновный ({role_name}): ID {guilty_id}\n"
+        guilty_name = data.get("guilty_employee_name", f"ID {guilty_id}")
+        text += f"\nВиновный ({role_name}): {guilty_name}\n"
 
     text += "\nПодтвердить возврат?"
 
