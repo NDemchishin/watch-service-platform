@@ -5,6 +5,7 @@ from typing import Optional
 from datetime import datetime
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc, exists, and_
 
 from app.models.receipt import Receipt
@@ -71,17 +72,16 @@ class ReceiptService:
         telegram_username: Optional[str] = None,
     ) -> Receipt:
         """Создать новую квитанцию с логированием в историю."""
-        # Проверка на уникальность номера квитанции
-        existing = self.get_by_number(data.receipt_number)
-        if existing:
-            raise DuplicateError(f"Квитанция с номером {data.receipt_number} уже существует")
-        
         receipt = Receipt(
             receipt_number=data.receipt_number,
             current_deadline=data.current_deadline,
         )
         self.db.add(receipt)
-        self.db.flush()  # Получаем ID до коммита
+        try:
+            self.db.flush()
+        except IntegrityError:
+            self.db.rollback()
+            raise DuplicateError(f"Квитанция с номером {data.receipt_number} уже существует")
         
         # Логируем создание в историю
         history_event = HistoryEvent(

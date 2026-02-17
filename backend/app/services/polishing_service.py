@@ -5,7 +5,8 @@ from typing import Optional
 from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc, func
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy import desc, func, update
 
 from app.models.polishing import PolishingDetails
 from app.models.employee import Employee
@@ -73,11 +74,6 @@ class PolishingService:
         if not polisher:
             raise NotFoundException("Полировщик", data.polisher_id)
 
-        # Проверяем, нет ли уже записи для этой квитанции
-        existing = self.get_by_receipt_id(data.receipt_id)
-        if existing:
-            raise ValidationException(f"Квитанция {data.receipt_id} уже в полировке")
-
         polishing = PolishingDetails(
             receipt_id=data.receipt_id,
             polisher_id=data.polisher_id,
@@ -87,7 +83,11 @@ class PolishingService:
             comment=data.comment,
         )
         self.db.add(polishing)
-        self.db.flush()
+        try:
+            self.db.flush()
+        except IntegrityError:
+            self.db.rollback()
+            raise ValidationException(f"Квитанция {data.receipt_id} уже в полировке")
         
         # Логируем передачу в полировку
         history_event = HistoryEvent(
@@ -117,29 +117,38 @@ class PolishingService:
         telegram_id: Optional[int] = None,
         telegram_username: Optional[str] = None,
     ) -> PolishingDetails:
-        """Отметить возврат из полировки с логированием."""
-        polishing = self.get_by_receipt_id(receipt_id)
-        if not polishing:
-            raise NotFoundException("Полировка для квитанции", receipt_id)
+        """Отметить возврат из полировки с логированием (атомарный UPDATE)."""
+        actual_returned_at = returned_at or datetime.utcnow()
 
-        if polishing.returned_at:
+        result = self.db.execute(
+            update(PolishingDetails)
+            .where(PolishingDetails.receipt_id == receipt_id)
+            .where(PolishingDetails.returned_at.is_(None))
+            .values(returned_at=actual_returned_at)
+        )
+
+        if result.rowcount == 0:
+            # Определяем причину: не найдено или уже возвращено
+            polishing = self.get_by_receipt_id(receipt_id)
+            if not polishing:
+                raise NotFoundException("Полировка для квитанции", receipt_id)
             raise ValidationException("Часы уже возвращены из полировки")
-        
-        polishing.returned_at = returned_at or datetime.utcnow()
-        
+
+        polishing = self.get_by_receipt_id(receipt_id)
+
         # Логируем возврат из полировки
         history_event = HistoryEvent(
             receipt_id=receipt_id,
             event_type="polishing_returned",
             payload={
                 "polisher_id": polishing.polisher_id,
-                "returned_at": polishing.returned_at.isoformat(),
+                "returned_at": actual_returned_at.isoformat(),
             },
             telegram_id=telegram_id,
             telegram_username=telegram_username,
         )
         self.db.add(history_event)
-        
+
         self.db.flush()
         self.db.refresh(polishing)
         return polishing
