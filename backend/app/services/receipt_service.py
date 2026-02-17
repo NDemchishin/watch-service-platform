@@ -13,6 +13,7 @@ from app.models.history import HistoryEvent
 from app.schemas.receipt import ReceiptCreate, ReceiptUpdate
 from app.services.notification_service import NotificationService
 from app.core.exceptions import DuplicateError
+from app.core.utils import sanitize_text
 
 
 class ReceiptService:
@@ -75,7 +76,7 @@ class ReceiptService:
     ) -> Receipt:
         """Создать новую квитанцию с логированием в историю."""
         receipt = Receipt(
-            receipt_number=data.receipt_number,
+            receipt_number=sanitize_text(data.receipt_number, max_length=100),
             current_deadline=data.current_deadline,
         )
         self.db.add(receipt)

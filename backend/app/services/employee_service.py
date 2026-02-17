@@ -10,6 +10,7 @@ from sqlalchemy import desc
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 from app.core.exceptions import DuplicateError
+from app.core.utils import sanitize_text
 
 
 class EmployeeService:
@@ -61,9 +62,9 @@ class EmployeeService:
     def create(self, data: EmployeeCreate) -> Employee:
         """Создать нового сотрудника."""
         employee = Employee(
-            name=data.name,
+            name=sanitize_text(data.name, max_length=200),
             telegram_id=data.telegram_id,
-            telegram_username=data.telegram_username,
+            telegram_username=sanitize_text(data.telegram_username, max_length=100),
             is_active=data.is_active,
         )
         self.db.add(employee)
@@ -78,8 +79,10 @@ class EmployeeService:
     def update(self, employee: Employee, data: EmployeeUpdate) -> Employee:
         """Обновить данные сотрудника."""
         update_data = data.model_dump(exclude_unset=True)
-        
+
         for field, value in update_data.items():
+            if field in ("name", "telegram_username") and isinstance(value, str):
+                value = sanitize_text(value, max_length=200 if field == "name" else 100)
             setattr(employee, field, value)
         
         self.db.flush()

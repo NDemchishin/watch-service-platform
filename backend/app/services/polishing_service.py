@@ -14,6 +14,7 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.polishing import PolishingDetailsCreate, PolishingDetailsUpdate
 from app.core.exceptions import NotFoundException, ValidationException
+from app.core.utils import sanitize_text
 
 
 class PolishingService:
@@ -92,7 +93,7 @@ class PolishingService:
             metal_type=data.metal_type,
             bracelet=data.bracelet,
             difficult=data.difficult,
-            comment=data.comment,
+            comment=sanitize_text(data.comment),
         )
         self.db.add(polishing)
         try:

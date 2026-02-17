@@ -12,6 +12,7 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.return_ import ReturnCreate, ReturnReasonLinkCreate
 from app.core.exceptions import NotFoundException
+from app.core.utils import sanitize_text
 
 
 class ReturnService:
@@ -93,7 +94,7 @@ class ReturnService:
         # Создаем возврат
         return_record = Return(
             receipt_id=data.receipt_id,
-            comment=data.comment,
+            comment=sanitize_text(data.comment),
         )
         self.db.add(return_record)
         self.db.flush()  # Получаем ID возврата
