@@ -2,12 +2,15 @@
 Главный файл FastAPI приложения.
 """
 import logging
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from fastapi.responses import JSONResponse
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.exceptions import AppException
 from app.api import api_router
 from app.api.telegram import router as telegram_router
@@ -46,9 +49,16 @@ app.add_middleware(
 
 # Health check endpoint
 @app.get("/health")
-def health():
-    """Health check endpoint."""
-    return {"status": "ok"}
+def health(db: Session = Depends(get_db)):
+    """Health check endpoint with database verification."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "healthy", "database": "connected"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "unhealthy", "database": str(e)},
+        )
 
 # Подключаем webhook endpoint напрямую (без префикса /api/v1)
 app.include_router(telegram_router, prefix="/webhook")
