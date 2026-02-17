@@ -100,6 +100,6 @@ class OperationService:
         )
         self.db.add(history_event)
         
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(operation)
         return operation

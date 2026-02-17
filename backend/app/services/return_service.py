@@ -120,6 +120,6 @@ class ReturnService:
         )
         self.db.add(history_event)
         
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(return_record)
         return return_record

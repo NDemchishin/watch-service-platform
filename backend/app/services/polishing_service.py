@@ -99,7 +99,7 @@ class PolishingService:
         )
         self.db.add(history_event)
         
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(polishing)
         return polishing
     
@@ -133,7 +133,7 @@ class PolishingService:
         )
         self.db.add(history_event)
         
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(polishing)
         return polishing
     

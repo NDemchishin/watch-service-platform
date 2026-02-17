@@ -54,7 +54,7 @@ class NotificationService:
             self.db.add(notif_1h)
             notifications.append(notif_1h)
 
-        self.db.commit()
+        self.db.flush()
         logger.info(f"Scheduled {len(notifications)} notifications for receipt {receipt_id}, deadline {deadline}")
         return notifications
 
@@ -71,7 +71,7 @@ class NotificationService:
             )
             .update({"is_cancelled": True})
         )
-        self.db.commit()
+        self.db.flush()
         if count:
             logger.info(f"Cancelled {count} notifications for receipt {receipt_id}")
         return count
@@ -96,7 +96,7 @@ class NotificationService:
         notif = self.db.query(Notification).filter(Notification.id == notification_id).first()
         if notif:
             notif.sent_at = datetime.utcnow()
-            self.db.commit()
+            self.db.flush()
 
     def get_receipt_for_notification(self, receipt_id: int) -> Optional[Receipt]:
         """Получает квитанцию для уведомления."""

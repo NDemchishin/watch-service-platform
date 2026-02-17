@@ -65,6 +65,6 @@ class HistoryService:
             telegram_username=data.telegram_username,
         )
         self.db.add(event)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(event)
         return event

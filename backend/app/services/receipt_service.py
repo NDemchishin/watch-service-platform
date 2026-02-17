@@ -95,7 +95,7 @@ class ReceiptService:
         )
         self.db.add(history_event)
 
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(receipt)
 
         # Планируем уведомления если есть дедлайн
@@ -129,7 +129,7 @@ class ReceiptService:
         )
         self.db.add(history_event)
 
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(receipt)
 
         # Перепланируем уведомления

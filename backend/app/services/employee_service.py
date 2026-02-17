@@ -65,7 +65,7 @@ class EmployeeService:
             is_active=data.is_active,
         )
         self.db.add(employee)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(employee)
         return employee
     
@@ -76,20 +76,20 @@ class EmployeeService:
         for field, value in update_data.items():
             setattr(employee, field, value)
         
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(employee)
         return employee
     
     def deactivate(self, employee: Employee) -> Employee:
         """Деактивировать сотрудника (вместо удаления)."""
         employee.is_active = False
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(employee)
         return employee
     
     def activate(self, employee: Employee) -> Employee:
         """Активировать сотрудника."""
         employee.is_active = True
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(employee)
         return employee
