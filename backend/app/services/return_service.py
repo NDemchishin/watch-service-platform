@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 
 from app.models.return_ import Return, ReturnReason, ReturnReasonLink
+from app.models.employee import Employee
+from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.return_ import ReturnCreate, ReturnReasonLinkCreate
+from app.core.exceptions import NotFoundException
 
 
 class ReturnService:
@@ -71,6 +74,20 @@ class ReturnService:
         telegram_username: Optional[str] = None,
     ) -> Return:
         """Создать новый возврат с логированием в историю."""
+        receipt = self.db.query(Receipt).get(data.receipt_id)
+        if not receipt:
+            raise NotFoundException("Квитанция", data.receipt_id)
+
+        # Валидация FK для каждой причины
+        for reason_link in data.reasons:
+            reason = self.db.query(ReturnReason).get(reason_link.reason_id)
+            if not reason:
+                raise NotFoundException("Причина возврата", reason_link.reason_id)
+            if reason_link.guilty_employee_id:
+                guilty = self.db.query(Employee).get(reason_link.guilty_employee_id)
+                if not guilty:
+                    raise NotFoundException("Сотрудник", reason_link.guilty_employee_id)
+
         # Создаем возврат
         return_record = Return(
             receipt_id=data.receipt_id,
@@ -93,7 +110,6 @@ class ReturnService:
             reason = self.db.query(ReturnReason).get(reason_link.reason_id)
             guilty_name = None
             if reason_link.guilty_employee_id:
-                from app.models.employee import Employee
                 guilty = self.db.query(Employee).get(reason_link.guilty_employee_id)
                 guilty_name = guilty.name if guilty else None
             

@@ -8,8 +8,11 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc, func
 
 from app.models.polishing import PolishingDetails
+from app.models.employee import Employee
+from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.polishing import PolishingDetailsCreate, PolishingDetailsUpdate
+from app.core.exceptions import NotFoundException, ValidationException
 
 
 class PolishingService:
@@ -62,11 +65,19 @@ class PolishingService:
         telegram_username: Optional[str] = None,
     ) -> PolishingDetails:
         """Создать запись о передаче в полировку с логированием."""
+        receipt = self.db.query(Receipt).get(data.receipt_id)
+        if not receipt:
+            raise NotFoundException("Квитанция", data.receipt_id)
+
+        polisher = self.db.query(Employee).get(data.polisher_id)
+        if not polisher:
+            raise NotFoundException("Полировщик", data.polisher_id)
+
         # Проверяем, нет ли уже записи для этой квитанции
         existing = self.get_by_receipt_id(data.receipt_id)
         if existing:
-            raise ValueError(f"Квитанция {data.receipt_id} уже в полировке")
-        
+            raise ValidationException(f"Квитанция {data.receipt_id} уже в полировке")
+
         polishing = PolishingDetails(
             receipt_id=data.receipt_id,
             polisher_id=data.polisher_id,
@@ -77,10 +88,6 @@ class PolishingService:
         )
         self.db.add(polishing)
         self.db.flush()
-        
-        # Получаем имя полировщика для истории
-        from app.models.employee import Employee
-        polisher = self.db.query(Employee).get(data.polisher_id)
         
         # Логируем передачу в полировку
         history_event = HistoryEvent(
@@ -113,10 +120,10 @@ class PolishingService:
         """Отметить возврат из полировки с логированием."""
         polishing = self.get_by_receipt_id(receipt_id)
         if not polishing:
-            raise ValueError(f"Запись о полировке для квитанции {receipt_id} не найдена")
-        
+            raise NotFoundException("Полировка для квитанции", receipt_id)
+
         if polishing.returned_at:
-            raise ValueError(f"Часы уже возвращены из полировки")
+            raise ValidationException("Часы уже возвращены из полировки")
         
         polishing.returned_at = returned_at or datetime.utcnow()
         

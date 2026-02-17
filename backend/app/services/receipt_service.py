@@ -11,6 +11,7 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.receipt import ReceiptCreate, ReceiptUpdate
 from app.services.notification_service import NotificationService
+from app.core.exceptions import DuplicateError
 
 
 class ReceiptService:
@@ -73,7 +74,7 @@ class ReceiptService:
         # Проверка на уникальность номера квитанции
         existing = self.get_by_number(data.receipt_number)
         if existing:
-            raise ValueError(f"Квитанция с номером {data.receipt_number} уже существует")
+            raise DuplicateError(f"Квитанция с номером {data.receipt_number} уже существует")
         
         receipt = Receipt(
             receipt_number=data.receipt_number,

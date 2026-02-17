@@ -82,7 +82,7 @@ class TestPolishingReturn:
 
     def test_return_not_found(self, client):
         resp = client.post("/api/v1/polishing/receipt/9999/return")
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
     def test_double_return(self, client):
         receipt = create_receipt(client, "R-001")

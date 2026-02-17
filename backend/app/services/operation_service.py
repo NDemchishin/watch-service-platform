@@ -7,8 +7,11 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import desc
 
 from app.models.operation import Operation, OperationType
+from app.models.employee import Employee
+from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.operation import OperationCreate
+from app.core.exceptions import NotFoundException
 
 
 class OperationService:
@@ -71,6 +74,18 @@ class OperationService:
         telegram_username: Optional[str] = None,
     ) -> Operation:
         """Создать новую операцию с логированием в историю."""
+        receipt = self.db.query(Receipt).get(data.receipt_id)
+        if not receipt:
+            raise NotFoundException("Квитанция", data.receipt_id)
+
+        operation_type = self.db.query(OperationType).get(data.operation_type_id)
+        if not operation_type:
+            raise NotFoundException("Тип операции", data.operation_type_id)
+
+        employee = self.db.query(Employee).get(data.employee_id)
+        if not employee:
+            raise NotFoundException("Сотрудник", data.employee_id)
+
         operation = Operation(
             receipt_id=data.receipt_id,
             operation_type_id=data.operation_type_id,
@@ -78,11 +93,6 @@ class OperationService:
         )
         self.db.add(operation)
         self.db.flush()  # Получаем ID до коммита
-        
-        # Получаем данные для истории
-        operation_type = self.db.query(OperationType).get(data.operation_type_id)
-        from app.models.employee import Employee
-        employee = self.db.query(Employee).get(data.employee_id)
         
         # Логируем создание операции
         history_event = HistoryEvent(

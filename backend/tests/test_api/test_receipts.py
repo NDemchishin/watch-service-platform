@@ -15,7 +15,7 @@ class TestReceiptsCRUD:
     def test_create_duplicate_receipt(self, client):
         client.post("/api/v1/receipts", json={"receipt_number": "R-001"})
         resp = client.post("/api/v1/receipts", json={"receipt_number": "R-001"})
-        assert resp.status_code == 400
+        assert resp.status_code == 409
 
     def test_list_receipts_empty(self, client):
         resp = client.get("/api/v1/receipts")

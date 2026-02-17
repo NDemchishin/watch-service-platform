@@ -4,10 +4,12 @@
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy import desc
 
 from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
+from app.core.exceptions import DuplicateError
 
 
 class EmployeeService:
@@ -65,7 +67,11 @@ class EmployeeService:
             is_active=data.is_active,
         )
         self.db.add(employee)
-        self.db.flush()
+        try:
+            self.db.flush()
+        except IntegrityError:
+            self.db.rollback()
+            raise DuplicateError(f"Сотрудник с telegram_id {data.telegram_id} уже существует")
         self.db.refresh(employee)
         return employee
     

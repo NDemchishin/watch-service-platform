@@ -6,6 +6,7 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.receipt import ReceiptCreate
 from app.services.receipt_service import ReceiptService
+from app.core.exceptions import DuplicateError
 
 
 class TestReceiptService:
@@ -22,7 +23,7 @@ class TestReceiptService:
     def test_create_duplicate_raises(self, db_session):
         service = ReceiptService(db_session)
         service.create(ReceiptCreate(receipt_number="R-001"))
-        with pytest.raises(ValueError):
+        with pytest.raises(DuplicateError):
             service.create(ReceiptCreate(receipt_number="R-001"))
 
     def test_create_receipt_logs_history(self, db_session):
