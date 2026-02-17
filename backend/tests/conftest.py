@@ -10,6 +10,7 @@ os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["TELEGRAM_BOT_WEBHOOK_URL"] = ""
 os.environ["API_KEY"] = "test-api-key"
 os.environ["TELEGRAM_WEBHOOK_SECRET"] = "test-webhook-secret"
+os.environ["DATABASE_URL"] = "sqlite://"
 
 # Принудительно обнуляем config бота (мог быть уже загружен с реальным TOKEN)
 import telegram_bot.config
