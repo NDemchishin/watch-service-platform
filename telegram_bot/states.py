@@ -69,6 +69,7 @@ class Employees(StatesGroup):
     main_menu = State()
     add_employee = State()
     enter_name = State()
+    select_role = State()          # выбор роли (мастер/полировщик)
     enter_telegram_id = State()
     list_all = State()
     list_inactive = State()

@@ -1,6 +1,8 @@
 """
 API endpoints для управления сотрудниками.
 """
+from typing import Optional
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -27,18 +29,19 @@ def list_employees(
     limit: int = Query(100, ge=1, le=1000),
     active_only: bool = Query(False),
     inactive_only: bool = Query(False),
+    role: Optional[str] = Query(None, description="Фильтр по роли: master или polisher"),
     db: Session = Depends(get_db),
 ):
     """Получить список сотрудников."""
     service = EmployeeService(db)
-    
+
     if inactive_only:
-        employees = service.get_inactive(skip=skip, limit=limit)
+        employees = service.get_inactive(skip=skip, limit=limit, role=role)
     elif active_only:
-        employees = service.get_active(skip=skip, limit=limit)
+        employees = service.get_active(skip=skip, limit=limit, role=role)
     else:
-        employees = service.get_all(skip=skip, limit=limit)
-    
+        employees = service.get_all(skip=skip, limit=limit, role=role)
+
     return EmployeeListResponse(
         items=[EmployeeResponse.model_validate(e) for e in employees],
         total=len(employees),

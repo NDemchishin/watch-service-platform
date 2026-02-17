@@ -59,8 +59,8 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
             receipt_number=receipt_number,
         )
         
-        # Получаем список активных сотрудников (мастеров)
-        employees = await get_api_client().get_employees(active_only=True)
+        # Получаем список активных мастеров
+        employees = await get_api_client().get_employees(active_only=True, role="master")
         
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         

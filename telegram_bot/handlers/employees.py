@@ -18,6 +18,8 @@ from telegram_bot.utils import push_nav
 logger = logging.getLogger(__name__)
 router = Router()
 
+ROLE_LABELS = {"master": "👨‍🔧 Мастер", "polisher": "🪙 Полировщик"}
+
 
 @router.callback_query(F.data == "menu:employees")
 async def employees_menu(callback: CallbackQuery, state: FSMContext) -> None:
@@ -68,50 +70,89 @@ async def start_add_employee(callback: CallbackQuery, state: FSMContext) -> None
 async def process_employee_name(message: Message, state: FSMContext) -> None:
     """Обработка ввода ФИО сотрудника."""
     name = message.text.strip()
-    
+
     if len(name) < 2:
         await message.answer(
             text="❌ ФИО слишком короткое. Введите минимум 2 символа:",
             reply_markup=get_back_keyboard("employees")
         )
         return
-    
+
     await state.update_data(name=name)
-    
+
+    from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="👨‍🔧 Мастер", callback_data="emp:role:master"),
+            ],
+            [
+                InlineKeyboardButton(text="🪙 Полировщик", callback_data="emp:role:polisher"),
+            ],
+            [
+                InlineKeyboardButton(text="⬅ Назад", callback_data="back:employees"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
+            ],
+        ]
+    )
+
     await message.answer(
+        text=f"👥 Выберите роль для сотрудника {name}:",
+        reply_markup=keyboard,
+    )
+    await state.set_state(Employees.select_role)
+
+
+@router.callback_query(Employees.select_role, F.data.startswith("emp:role:"))
+async def process_employee_role(callback: CallbackQuery, state: FSMContext) -> None:
+    """Обработка выбора роли сотрудника."""
+    role = callback.data.split(":")[2]  # master или polisher
+    await state.update_data(role=role)
+
+    data = await state.get_data()
+    role_label = ROLE_LABELS.get(role, role)
+
+    await callback.message.edit_text(
         text=f"👥 Подтверждение добавления сотрудника\n\n"
-             f"ФИО: {name}\n\n"
+             f"ФИО: {data.get('name')}\n"
+             f"Роль: {role_label}\n\n"
              f"Подтвердите:",
         reply_markup=get_confirm_keyboard()
     )
     await state.set_state(Employees.add_employee)
+    await callback.answer()
 
 
 @router.callback_query(Employees.add_employee, F.data == "confirm")
 async def confirm_add_employee(callback: CallbackQuery, state: FSMContext) -> None:
     """Подтверждение добавления сотрудника."""
     data = await state.get_data()
-    
+
     try:
         employee = await get_api_client().create_employee(
             name=data.get("name"),
+            role=data.get("role"),
         )
-        
+
+        role_label = ROLE_LABELS.get(employee.get("role", ""), "")
+
         await callback.message.edit_text(
             text=f"✅ Сотрудник добавлен!\n\n"
                  f"ID: {employee.get('id')}\n"
-                 f"Имя: {employee.get('name')}",
+                 f"Имя: {employee.get('name')}\n"
+                 f"Роль: {role_label}",
             reply_markup=get_back_home_keyboard("employees")
         )
         logger.info(f"Employee created: {employee}")
-        
+
     except Exception as e:
         logger.error(f"Error creating employee: {e}")
         await callback.message.edit_text(
             text="❌ Ошибка при добавлении сотрудника.",
             reply_markup=get_back_home_keyboard("employees")
         )
-    
+
     await state.clear()
     await callback.answer()
 
@@ -135,9 +176,10 @@ async def list_all_employees(callback: CallbackQuery, state: FSMContext) -> None
         buttons = []
         for emp in employees:
             status = "✅" if emp.get("is_active", True) else "🚫"
+            role_icon = "👨‍🔧" if emp.get("role") == "master" else "🪙"
             buttons.append([
                 InlineKeyboardButton(
-                    text=f"{status} {emp.get('name')}",
+                    text=f"{status} {role_icon} {emp.get('name')}",
                     callback_data=f"emp:view:{emp.get('id')}"
                 )
             ])
@@ -219,20 +261,26 @@ async def list_inactive_employees(callback: CallbackQuery, state: FSMContext) ->
 async def view_employee(callback: CallbackQuery, state: FSMContext) -> None:
     """Просмотр и управление сотрудником."""
     employee_id = int(callback.data.split(":")[2])
-    
+
     try:
         employee = await get_api_client().get_employee(employee_id)
-        
+
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-        
+
         is_active = employee.get("is_active", True)
         action_text = "🚫 Деактивировать" if is_active else "✅ Активировать"
         action_callback = f"emp:deactivate:{employee_id}" if is_active else f"emp:activate:{employee_id}"
-        
+
+        new_role = "polisher" if employee.get("role") == "master" else "master"
+        new_role_label = "🪙 Сделать полировщиком" if new_role == "polisher" else "👨‍🔧 Сделать мастером"
+
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
                 [
                     InlineKeyboardButton(text=action_text, callback_data=action_callback),
+                ],
+                [
+                    InlineKeyboardButton(text=new_role_label, callback_data=f"emp:change_role:{employee_id}:{new_role}"),
                 ],
                 [
                     InlineKeyboardButton(text="⬅ Назад", callback_data="emp:list_all"),
@@ -240,26 +288,27 @@ async def view_employee(callback: CallbackQuery, state: FSMContext) -> None:
                 ],
             ]
         )
-        
+
         name = employee.get("name", "Unknown")
-        
         status = "✅ Активен" if is_active else "🚫 Неактивен"
-        
+        role_label = ROLE_LABELS.get(employee.get("role", ""), "")
+
         await callback.message.edit_text(
             text=f"👥 {name}\n\n"
+                 f"Роль: {role_label}\n"
                  f"Статус: {status}\n"
                  f"ID: {employee_id}",
             reply_markup=keyboard
         )
         await state.set_state(Employees.select_employee)
-        
+
     except Exception as e:
         logger.error(f"Error fetching employee: {e}")
         await callback.message.edit_text(
             text="❌ Ошибка при получении сотрудника.",
             reply_markup=get_back_home_keyboard("employees")
         )
-    
+
     await callback.answer()
 
 
@@ -362,6 +411,33 @@ async def do_deactivate_employee(callback: CallbackQuery, state: FSMContext) -> 
         )
 
     await state.clear()
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("emp:change_role:"))
+async def change_employee_role(callback: CallbackQuery, state: FSMContext) -> None:
+    """Смена роли сотрудника."""
+    parts = callback.data.split(":")
+    employee_id = int(parts[2])
+    new_role = parts[3]
+
+    try:
+        updated = await get_api_client().update_employee(employee_id, role=new_role)
+
+        role_label = ROLE_LABELS.get(new_role, new_role)
+        await callback.message.edit_text(
+            text=f"✅ Роль сотрудника {updated.get('name')} изменена на {role_label}!",
+            reply_markup=get_back_home_keyboard("employees")
+        )
+        logger.info(f"Employee {employee_id} role changed to {new_role}")
+
+    except Exception as e:
+        logger.error(f"Error changing employee role: {e}")
+        await callback.message.edit_text(
+            text="❌ Ошибка при смене роли.",
+            reply_markup=get_back_home_keyboard("employees")
+        )
+
     await callback.answer()
 
 

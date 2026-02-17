@@ -369,8 +369,8 @@ async def start_change_master(callback: CallbackQuery, state: FSMContext) -> Non
     receipt_id = data.get("receipt_id")
     
     try:
-        employees = await get_api_client().get_employees(active_only=True)
-        
+        employees = await get_api_client().get_employees(active_only=True, role="master")
+
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
         buttons = []

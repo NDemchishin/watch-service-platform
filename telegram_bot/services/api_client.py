@@ -214,12 +214,15 @@ class APIClient:
         )
 
     # ===== Employees =====
-    async def get_employees(self, active_only: bool = True) -> list[dict]:
-        """Получает список сотрудников."""
+    async def get_employees(self, active_only: bool = True, role: Optional[str] = None) -> list[dict]:
+        """Получает список сотрудников, опционально фильтруя по роли."""
+        params = {"active_only": active_only}
+        if role:
+            params["role"] = role
         response = await self._request(
             "GET",
             "/employees/",
-            params={"active_only": active_only}
+            params=params,
         )
         return self._unwrap_paginated(response)
 
@@ -240,6 +243,7 @@ class APIClient:
     async def create_employee(
         self,
         name: str,
+        role: str,
         telegram_id: Optional[int] = None,
         telegram_username: Optional[str] = None,
     ) -> dict:
@@ -249,6 +253,7 @@ class APIClient:
             "/employees/",
             json_data={
                 "name": name,
+                "role": role,
                 "telegram_id": telegram_id,
                 "telegram_username": telegram_username,
             }
@@ -271,6 +276,14 @@ class APIClient:
     async def get_employee(self, employee_id: int) -> dict:
         """Получает сотрудника по ID."""
         return await self._request("GET", f"/employees/{employee_id}")
+
+    async def update_employee(self, employee_id: int, **fields) -> dict:
+        """Обновляет данные сотрудника (PATCH)."""
+        return await self._request(
+            "PATCH",
+            f"/employees/{employee_id}",
+            json_data=fields,
+        )
 
     # ===== Operations =====
     async def create_operation(

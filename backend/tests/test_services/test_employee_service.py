@@ -8,30 +8,31 @@ class TestEmployeeService:
 
     def test_create_employee(self, db_session):
         service = EmployeeService(db_session)
-        data = EmployeeCreate(name="Иван", telegram_id=123)
+        data = EmployeeCreate(name="Иван", role="master", telegram_id=123)
         employee = service.create(data)
         assert employee.id is not None
         assert employee.name == "Иван"
+        assert employee.role == "master"
         assert employee.is_active is True
 
     def test_get_by_id(self, db_session):
         service = EmployeeService(db_session)
-        emp = service.create(EmployeeCreate(name="Иван"))
+        emp = service.create(EmployeeCreate(name="Иван", role="master"))
         found = service.get_by_id(emp.id)
         assert found is not None
         assert found.name == "Иван"
 
     def test_get_by_telegram_id(self, db_session):
         service = EmployeeService(db_session)
-        service.create(EmployeeCreate(name="Иван", telegram_id=12345))
+        service.create(EmployeeCreate(name="Иван", role="master", telegram_id=12345))
         found = service.get_by_telegram_id(12345)
         assert found is not None
         assert found.name == "Иван"
 
     def test_get_active(self, db_session):
         service = EmployeeService(db_session)
-        emp1 = service.create(EmployeeCreate(name="Активный"))
-        emp2 = service.create(EmployeeCreate(name="Неактивный"))
+        emp1 = service.create(EmployeeCreate(name="Активный", role="master"))
+        emp2 = service.create(EmployeeCreate(name="Неактивный", role="master"))
         service.deactivate(emp2)
 
         active = service.get_active()
@@ -40,8 +41,8 @@ class TestEmployeeService:
 
     def test_get_inactive(self, db_session):
         service = EmployeeService(db_session)
-        emp1 = service.create(EmployeeCreate(name="Активный"))
-        emp2 = service.create(EmployeeCreate(name="Неактивный"))
+        emp1 = service.create(EmployeeCreate(name="Активный", role="master"))
+        emp2 = service.create(EmployeeCreate(name="Неактивный", role="master"))
         service.deactivate(emp2)
 
         inactive = service.get_inactive()
@@ -50,19 +51,19 @@ class TestEmployeeService:
 
     def test_update(self, db_session):
         service = EmployeeService(db_session)
-        emp = service.create(EmployeeCreate(name="Иван"))
+        emp = service.create(EmployeeCreate(name="Иван", role="master"))
         updated = service.update(emp, EmployeeUpdate(name="Пётр"))
         assert updated.name == "Пётр"
 
     def test_deactivate(self, db_session):
         service = EmployeeService(db_session)
-        emp = service.create(EmployeeCreate(name="Иван"))
+        emp = service.create(EmployeeCreate(name="Иван", role="master"))
         deactivated = service.deactivate(emp)
         assert deactivated.is_active is False
 
     def test_activate(self, db_session):
         service = EmployeeService(db_session)
-        emp = service.create(EmployeeCreate(name="Иван"))
+        emp = service.create(EmployeeCreate(name="Иван", role="master"))
         service.deactivate(emp)
         activated = service.activate(emp)
         assert activated.is_active is True

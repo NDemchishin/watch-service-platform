@@ -8,11 +8,12 @@ class TestEmployeesCRUD:
     def test_create_employee(self, client):
         resp = client.post(
             "/api/v1/employees",
-            json={"name": "Иван Иванов", "telegram_id": 123456},
+            json={"name": "Иван Иванов", "role": "master", "telegram_id": 123456},
         )
         assert resp.status_code == 201
         data = resp.json()
         assert data["name"] == "Иван Иванов"
+        assert data["role"] == "master"
         assert data["telegram_id"] == 123456
         assert data["is_active"] is True
 

@@ -144,9 +144,9 @@ def create_receipt(c: TestClient, receipt_number: str = "TEST-001") -> dict:
     return resp.json()
 
 
-def create_employee(c: TestClient, name: str = "Тестовый Мастер", telegram_id: int = None) -> dict:
+def create_employee(c: TestClient, name: str = "Тестовый Мастер", role: str = "master", telegram_id: int = None) -> dict:
     """Создаёт сотрудника через API."""
-    data = {"name": name}
+    data = {"name": name, "role": role}
     if telegram_id is not None:
         data["telegram_id"] = telegram_id
     resp = c.post("/api/v1/employees", json=data)

@@ -296,8 +296,11 @@ async def select_guilty_role(callback: CallbackQuery, state: FSMContext) -> None
     role = callback.data.split(":")[2]  # polisher или assembler
     await state.update_data(guilty_role=role)
 
+    # Маппинг: assembler в контексте проекта = master
+    employee_role = "polisher" if role == "polisher" else "master"
+
     try:
-        employees = await get_api_client().get_employees(active_only=True)
+        employees = await get_api_client().get_employees(active_only=True, role=employee_role)
         data = await state.get_data()
         receipt_number = data.get("receipt_number")
 

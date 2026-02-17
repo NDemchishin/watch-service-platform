@@ -30,32 +30,39 @@ class EmployeeService:
         """Получить сотрудника по Telegram ID."""
         return self.db.query(Employee).filter(Employee.telegram_id == telegram_id).first()
     
-    def get_active(self, skip: int = 0, limit: int = 100) -> list[Employee]:
-        """Получить список активных сотрудников."""
+    def get_active(self, skip: int = 0, limit: int = 100, role: Optional[str] = None) -> list[Employee]:
+        """Получить список активных сотрудников, опционально фильтруя по роли."""
+        query = self.db.query(Employee).filter(Employee.is_active == True)
+        if role:
+            query = query.filter(Employee.role == role)
         return (
-            self.db.query(Employee)
-            .filter(Employee.is_active == True)
+            query
             .order_by(desc(Employee.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
-    
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[Employee]:
-        """Получить список всех сотрудников."""
+
+    def get_all(self, skip: int = 0, limit: int = 100, role: Optional[str] = None) -> list[Employee]:
+        """Получить список всех сотрудников, опционально фильтруя по роли."""
+        query = self.db.query(Employee)
+        if role:
+            query = query.filter(Employee.role == role)
         return (
-            self.db.query(Employee)
+            query
             .order_by(desc(Employee.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
-    
-    def get_inactive(self, skip: int = 0, limit: int = 100) -> list[Employee]:
-        """Получить список неактивных сотрудников."""
+
+    def get_inactive(self, skip: int = 0, limit: int = 100, role: Optional[str] = None) -> list[Employee]:
+        """Получить список неактивных сотрудников, опционально фильтруя по роли."""
+        query = self.db.query(Employee).filter(Employee.is_active == False)
+        if role:
+            query = query.filter(Employee.role == role)
         return (
-            self.db.query(Employee)
-            .filter(Employee.is_active == False)
+            query
             .order_by(desc(Employee.created_at))
             .offset(skip)
             .limit(limit)
@@ -64,9 +71,10 @@ class EmployeeService:
     
     def create(self, data: EmployeeCreate) -> Employee:
         """Создать нового сотрудника."""
-        logger.info("Creating employee: name=%s, telegram_id=%s", data.name, data.telegram_id)
+        logger.info("Creating employee: name=%s, role=%s, telegram_id=%s", data.name, data.role, data.telegram_id)
         employee = Employee(
             name=sanitize_text(data.name, max_length=200),
+            role=data.role,
             telegram_id=data.telegram_id,
             telegram_username=sanitize_text(data.telegram_username, max_length=100),
             is_active=data.is_active,
@@ -79,7 +87,7 @@ class EmployeeService:
             logger.warning("Duplicate telegram_id: %s", data.telegram_id)
             raise DuplicateError(f"Сотрудник с telegram_id {data.telegram_id} уже существует")
         self.db.refresh(employee)
-        logger.info("Employee created: id=%s, name=%s", employee.id, employee.name)
+        logger.info("Employee created: id=%s, name=%s, role=%s", employee.id, employee.name, employee.role)
         return employee
     
     def update(self, employee: Employee, data: EmployeeUpdate) -> Employee:
