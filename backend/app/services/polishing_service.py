@@ -13,7 +13,7 @@ from app.models.polishing import PolishingDetails
 from app.models.employee import Employee
 from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
-from app.schemas.polishing import PolishingDetailsCreate, PolishingDetailsUpdate
+from app.schemas.polishing import PolishingDetailsCreate
 from app.core.exceptions import NotFoundException, ValidationException
 from app.core.utils import sanitize_text, now_moscow
 
