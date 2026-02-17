@@ -9,8 +9,9 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import Polishing
-from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
+from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -19,10 +20,11 @@ router = Router()
 @router.callback_query(F.data == "menu:polishing")
 async def start_polishing(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало работы с полировкой."""
+    await push_nav(state, "MainMenu.main", "start_polishing")
     await callback.message.edit_text(
         text="🪙 Отправить в полировку\n\n"
              "Введите номер квитанции:",
-        reply_markup=get_back_keyboard("main")
+        reply_markup=get_back_home_keyboard("main")
     )
     await state.set_state(Polishing.waiting_for_receipt_number)
     await callback.answer()
@@ -37,7 +39,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         await message.answer(
             text="❌ Номер квитанции должен содержать только цифры.\n\n"
                  "Попробуйте снова:",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
         return
     
@@ -70,10 +72,14 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
                 )
             ])
         
-        buttons.append([InlineKeyboardButton(text="⬅ Назад", callback_data="back:polishing")])
-        
+        buttons.append([
+            InlineKeyboardButton(text="⬅ Назад", callback_data="back:polishing"),
+            InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
+        ])
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        
+
+        await push_nav(state, "Polishing.waiting_for_receipt_number", "process_receipt_number")
         await message.answer(
             text=f"🪙 Квитанция №{receipt_number}\n\n"
                  f"Выберите полировщика:",
@@ -85,20 +91,20 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         logger.exception("Connection error while processing receipt for polishing")
         await message.answer(
             text="❌ Сервер недоступен. Попробуйте позже.",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} for receipt {receipt_number}")
         await message.answer(
             text=f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}.\n\n"
                  f"Попробуйте снова:",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
     except Exception as e:
         logger.exception(f"Unexpected error with receipt for polishing: {e}")
         await message.answer(
             text="❌ Непредвиденная ошибка. Попробуйте снова.",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
 
 
@@ -107,11 +113,12 @@ async def select_polisher(callback: CallbackQuery, state: FSMContext) -> None:
     """Выбор полировщика."""
     polisher_id = int(callback.data.split(":")[1])
     await state.update_data(polisher_id=polisher_id)
-    
+    await push_nav(state, "Polishing.select_polisher", "select_polisher")
+
     await callback.message.edit_text(
         text="🪙 Тип металла\n\n"
              "Введите тип металла (например: сталь, золото, платина):",
-        reply_markup=get_back_keyboard("polishing")
+        reply_markup=get_back_home_keyboard("polishing")
     )
     await state.set_state(Polishing.enter_metal_type)
     await callback.answer()
@@ -124,14 +131,15 @@ async def process_metal_type(message: Message, state: FSMContext) -> None:
     if not metal_type:
         await message.answer(
             text="❌ Введите тип металла:",
-            reply_markup=get_back_keyboard("polishing")
+            reply_markup=get_back_home_keyboard("polishing")
         )
         return
     
     await state.update_data(metal_type=metal_type)
-    
+    await push_nav(state, "Polishing.enter_metal_type", "process_metal_type")
+
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -140,10 +148,11 @@ async def process_metal_type(message: Message, state: FSMContext) -> None:
             ],
             [
                 InlineKeyboardButton(text="⬅ Назад", callback_data="back:polishing"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
             ],
         ]
     )
-    
+
     await message.answer(
         text="🪙 Браслет\n\n"
              "Есть браслет для полировки?",
@@ -157,9 +166,10 @@ async def process_bracelet(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка наличия браслета."""
     has_bracelet = callback.data.split(":")[1] == "yes"
     await state.update_data(has_bracelet=has_bracelet)
-    
+    await push_nav(state, "Polishing.has_bracelet", "process_bracelet")
+
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -168,10 +178,11 @@ async def process_bracelet(callback: CallbackQuery, state: FSMContext) -> None:
             ],
             [
                 InlineKeyboardButton(text="⬅ Назад", callback_data="back:polishing"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
             ],
         ]
     )
-    
+
     await callback.message.edit_text(
         text="🪙 Сложность\n\n"
              "Сложная полировка?",
@@ -186,11 +197,14 @@ async def process_complex(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка сложности полировки."""
     is_complex = callback.data.split(":")[1] == "yes"
     await state.update_data(is_complex=is_complex)
-    
+    await push_nav(state, "Polishing.is_complex", "process_complex")
+
+    from telegram_bot.keyboards.main_menu import get_optional_input_keyboard
+
     await callback.message.edit_text(
         text="🪙 Комментарий\n\n"
-             "Введите комментарий (или отправьте '-' если не нужен):",
-        reply_markup=get_back_keyboard("polishing")
+             "Введите комментарий или нажмите Пропустить:",
+        reply_markup=get_optional_input_keyboard("comment", "polishing")
     )
     await state.set_state(Polishing.enter_comment)
     await callback.answer()
@@ -265,6 +279,27 @@ async def confirm_polishing(callback: CallbackQuery, state: FSMContext) -> None:
         )
     
     await state.clear()
+    await callback.answer()
+
+
+@router.callback_query(F.data == "skip:comment")
+async def skip_comment(callback: CallbackQuery, state: FSMContext) -> None:
+    """Пропуск комментария."""
+    await state.update_data(comment="")
+
+    data = await state.get_data()
+
+    await callback.message.edit_text(
+        text=f"🪙 Подтверждение передачи в полировку\n\n"
+             f"Квитанция: №{data.get('receipt_number')}\n"
+             f"Металл: {data.get('metal_type')}\n"
+             f"Браслет: {'Да' if data.get('has_bracelet') else 'Нет'}\n"
+             f"Сложная: {'Да' if data.get('is_complex') else 'Нет'}\n"
+             f"Комментарий: —\n\n"
+             f"Подтвердите:",
+        reply_markup=get_confirm_keyboard()
+    )
+    await state.set_state(Polishing.confirm)
     await callback.answer()
 
 

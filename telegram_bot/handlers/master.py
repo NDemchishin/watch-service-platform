@@ -10,8 +10,9 @@ from aiogram.types import CallbackQuery, Message
 from aiogram.fsm.context import FSMContext
 
 from telegram_bot.states import Master
-from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_back_keyboard, get_confirm_keyboard
+from telegram_bot.keyboards.main_menu import get_back_home_keyboard, get_confirm_keyboard
 from telegram_bot.services.api_client import get_api_client
+from telegram_bot.utils import push_nav
 
 logger = logging.getLogger(__name__)
 router = Router()
@@ -20,10 +21,11 @@ router = Router()
 @router.callback_query(F.data == "menu:master")
 async def start_master(callback: CallbackQuery, state: FSMContext) -> None:
     """Начало выдачи часов мастеру."""
+    await push_nav(state, "MainMenu.main", "start_master")
     await callback.message.edit_text(
         text="👨‍🔧 Выдать часы мастеру\n\n"
              "Введите номер квитанции:",
-        reply_markup=get_back_keyboard("main")
+        reply_markup=get_back_home_keyboard("main")
     )
     await state.set_state(Master.waiting_for_receipt_number)
     await callback.answer()
@@ -38,7 +40,7 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         await message.answer(
             text="❌ Номер квитанции должен содержать только цифры.\n\n"
                  "Попробуйте снова:",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
         return
     
@@ -71,10 +73,14 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
                 )
             ])
         
-        buttons.append([InlineKeyboardButton(text="⬅ Назад", callback_data="back:master")])
-        
+        buttons.append([
+            InlineKeyboardButton(text="⬅ Назад", callback_data="back:master"),
+            InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
+        ])
+
         keyboard = InlineKeyboardMarkup(inline_keyboard=buttons)
-        
+
+        await push_nav(state, "Master.waiting_for_receipt_number", "process_receipt_number")
         await message.answer(
             text=f"👨‍🔧 Квитанция №{receipt_number}\n\n"
                  f"Выберите мастера:",
@@ -86,20 +92,20 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         logger.exception("Connection error while processing receipt")
         await message.answer(
             text="❌ Сервер недоступен. Попробуйте позже.",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} for receipt {receipt_number}")
         await message.answer(
             text=f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}.\n\n"
                  f"Попробуйте снова:",
-            reply_markup=get_back_keyboard("main")
+            reply_markup=get_back_home_keyboard("main")
         )
     except Exception as e:
         logger.exception(f"Unexpected error with receipt: {e}")
         await message.answer(
-            text=f"❌ Непредвиденная ошибка. Попробуйте снова.",
-            reply_markup=get_back_keyboard("main")
+            text="❌ Непредвиденная ошибка. Попробуйте снова.",
+            reply_markup=get_back_home_keyboard("main")
         )
 
 
@@ -108,9 +114,10 @@ async def select_master(callback: CallbackQuery, state: FSMContext) -> None:
     """Выбор мастера."""
     master_id = int(callback.data.split(":")[1])
     await state.update_data(master_id=master_id)
-    
+    await push_nav(state, "Master.select_master", "select_master")
+
     from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-    
+
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -119,6 +126,7 @@ async def select_master(callback: CallbackQuery, state: FSMContext) -> None:
             ],
             [
                 InlineKeyboardButton(text="⬅ Назад", callback_data="back:master"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
             ],
         ]
     )
@@ -137,18 +145,19 @@ async def process_urgent(callback: CallbackQuery, state: FSMContext) -> None:
     """Обработка ответа о срочности."""
     is_urgent = callback.data.split(":")[1] == "yes"
     await state.update_data(is_urgent=is_urgent)
-    
+    await push_nav(state, "Master.is_urgent", "process_urgent")
+
     if is_urgent:
         await callback.message.edit_text(
             text="👨‍🔧 Введите дату и время готовности\n\n"
                  "Введите в формате: ДД.ММ ЧЧ:ММ\n"
                  "Например: 15.01 14:30",
-            reply_markup=get_back_keyboard("master")
+            reply_markup=get_back_home_keyboard("master")
         )
         await state.set_state(Master.enter_deadline)
     else:
         await show_confirmation(callback, state)
-    
+
     await callback.answer()
 
 
@@ -199,12 +208,12 @@ async def process_deadline(message: Message, state: FSMContext) -> None:
         await state.update_data(deadline=deadline)
         await show_deadline_confirmation(message, state, deadline)
         
-    except ValueError as e:
+    except ValueError:
         await message.answer(
             text="❌ Неверный формат.\n\n"
                  "Введите в формате: ДД.ММ ЧЧ:ММ\n"
                  "Например: 15.01 14:30",
-            reply_markup=get_back_keyboard("master")
+            reply_markup=get_back_home_keyboard("master")
         )
 
 
