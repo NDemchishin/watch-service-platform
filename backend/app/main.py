@@ -5,7 +5,10 @@ import logging
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from fastapi.responses import JSONResponse
+
 from app.core.config import settings
+from app.core.exceptions import AppException
 from app.api import api_router
 from app.api.telegram import router as telegram_router
 
@@ -21,6 +24,15 @@ app = FastAPI(
     description="API для системы учета производства и качества в часовой мастерской",
     version="1.0.0",
 )
+
+
+@app.exception_handler(AppException)
+async def app_exception_handler(request, exc: AppException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail, "error_code": exc.error_code},
+    )
+
 
 # CORS middleware — разрешённые домены из переменной окружения
 origins = [o.strip() for o in settings.ALLOWED_ORIGINS.split(",") if o.strip()]
