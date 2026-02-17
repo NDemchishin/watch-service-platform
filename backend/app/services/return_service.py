@@ -1,6 +1,7 @@
 """
 Сервис для работы с возвратами.
 """
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -13,6 +14,8 @@ from app.models.history import HistoryEvent
 from app.schemas.return_ import ReturnCreate, ReturnReasonLinkCreate
 from app.core.exceptions import NotFoundException
 from app.core.utils import sanitize_text
+
+logger = logging.getLogger(__name__)
 
 
 class ReturnService:
@@ -77,6 +80,7 @@ class ReturnService:
         telegram_username: Optional[str] = None,
     ) -> Return:
         """Создать новый возврат с логированием в историю."""
+        logger.info("Creating return: receipt_id=%s", data.receipt_id)
         receipt = self.db.query(Receipt).get(data.receipt_id)
         if not receipt:
             raise NotFoundException("Квитанция", data.receipt_id)
@@ -141,4 +145,5 @@ class ReturnService:
         
         self.db.flush()
         self.db.refresh(return_record)
+        logger.info("Return created: id=%s, receipt_id=%s", return_record.id, data.receipt_id)
         return return_record

@@ -1,6 +1,7 @@
 """
 Сервис для работы с сотрудниками.
 """
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -11,6 +12,8 @@ from app.models.employee import Employee
 from app.schemas.employee import EmployeeCreate, EmployeeUpdate
 from app.core.exceptions import DuplicateError
 from app.core.utils import sanitize_text
+
+logger = logging.getLogger(__name__)
 
 
 class EmployeeService:
@@ -61,6 +64,7 @@ class EmployeeService:
     
     def create(self, data: EmployeeCreate) -> Employee:
         """Создать нового сотрудника."""
+        logger.info("Creating employee: name=%s, telegram_id=%s", data.name, data.telegram_id)
         employee = Employee(
             name=sanitize_text(data.name, max_length=200),
             telegram_id=data.telegram_id,
@@ -72,8 +76,10 @@ class EmployeeService:
             self.db.flush()
         except IntegrityError:
             self.db.rollback()
+            logger.warning("Duplicate telegram_id: %s", data.telegram_id)
             raise DuplicateError(f"Сотрудник с telegram_id {data.telegram_id} уже существует")
         self.db.refresh(employee)
+        logger.info("Employee created: id=%s, name=%s", employee.id, employee.name)
         return employee
     
     def update(self, employee: Employee, data: EmployeeUpdate) -> Employee:
@@ -91,13 +97,15 @@ class EmployeeService:
     
     def deactivate(self, employee: Employee) -> Employee:
         """Деактивировать сотрудника (вместо удаления)."""
+        logger.info("Deactivating employee: id=%s", employee.id)
         employee.is_active = False
         self.db.flush()
         self.db.refresh(employee)
         return employee
-    
+
     def activate(self, employee: Employee) -> Employee:
         """Активировать сотрудника."""
+        logger.info("Activating employee: id=%s", employee.id)
         employee.is_active = True
         self.db.flush()
         self.db.refresh(employee)

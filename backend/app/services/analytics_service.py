@@ -1,6 +1,7 @@
 """
 Сервис аналитики — агрегационные запросы для Sprint 6.
 """
+import logging
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -12,6 +13,8 @@ from app.models.return_ import Return, ReturnReason, ReturnReasonLink
 from app.models.polishing import PolishingDetails
 from app.models.employee import Employee
 from app.core.utils import now_moscow
+
+logger = logging.getLogger(__name__)
 
 
 class AnalyticsService:

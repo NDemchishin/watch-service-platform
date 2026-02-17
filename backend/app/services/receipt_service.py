@@ -1,6 +1,7 @@
 """
 Сервис для работы с квитанциями.
 """
+import logging
 from typing import Optional
 from datetime import datetime
 
@@ -14,6 +15,8 @@ from app.schemas.receipt import ReceiptCreate, ReceiptUpdate
 from app.services.notification_service import NotificationService
 from app.core.exceptions import DuplicateError
 from app.core.utils import sanitize_text
+
+logger = logging.getLogger(__name__)
 
 
 class ReceiptService:
@@ -75,6 +78,7 @@ class ReceiptService:
         telegram_username: Optional[str] = None,
     ) -> Receipt:
         """Создать новую квитанцию с логированием в историю."""
+        logger.info("Creating receipt: number=%s", data.receipt_number)
         receipt = Receipt(
             receipt_number=sanitize_text(data.receipt_number, max_length=100),
             current_deadline=data.current_deadline,
@@ -84,6 +88,7 @@ class ReceiptService:
             self.db.flush()
         except IntegrityError:
             self.db.rollback()
+            logger.warning("Duplicate receipt number: %s", data.receipt_number)
             raise DuplicateError(f"Квитанция с номером {data.receipt_number} уже существует")
         
         # Логируем создание в историю
@@ -107,6 +112,7 @@ class ReceiptService:
             notification_service = NotificationService(self.db)
             notification_service.schedule_notifications(receipt.id, data.current_deadline)
 
+        logger.info("Receipt created: id=%s, number=%s", receipt.id, receipt.receipt_number)
         return receipt
 
     def update_deadline(
@@ -117,6 +123,7 @@ class ReceiptService:
         telegram_username: Optional[str] = None,
     ) -> Receipt:
         """Обновить дедлайн квитанции с логированием в историю."""
+        logger.info("Updating deadline: receipt_id=%s", receipt.id)
         old_deadline = receipt.current_deadline
         receipt.current_deadline = new_deadline
         

@@ -1,6 +1,7 @@
 """
 Сервис для работы с полировкой.
 """
+import logging
 from typing import Optional
 from datetime import datetime, timedelta
 
@@ -15,6 +16,8 @@ from app.models.history import HistoryEvent
 from app.schemas.polishing import PolishingDetailsCreate, PolishingDetailsUpdate
 from app.core.exceptions import NotFoundException, ValidationException
 from app.core.utils import sanitize_text, now_moscow
+
+logger = logging.getLogger(__name__)
 
 
 class PolishingService:
@@ -79,6 +82,7 @@ class PolishingService:
         telegram_username: Optional[str] = None,
     ) -> PolishingDetails:
         """Создать запись о передаче в полировку с логированием."""
+        logger.info("Sending to polishing: receipt_id=%s, polisher_id=%s", data.receipt_id, data.polisher_id)
         receipt = self.db.query(Receipt).get(data.receipt_id)
         if not receipt:
             raise NotFoundException("Квитанция", data.receipt_id)
@@ -121,8 +125,9 @@ class PolishingService:
         
         self.db.flush()
         self.db.refresh(polishing)
+        logger.info("Polishing created: receipt_id=%s", data.receipt_id)
         return polishing
-    
+
     def mark_returned(
         self,
         receipt_id: int,
@@ -131,6 +136,7 @@ class PolishingService:
         telegram_username: Optional[str] = None,
     ) -> PolishingDetails:
         """Отметить возврат из полировки с логированием (атомарный UPDATE)."""
+        logger.info("Marking polishing returned: receipt_id=%s", receipt_id)
         actual_returned_at = returned_at or now_moscow()
 
         result = self.db.execute(

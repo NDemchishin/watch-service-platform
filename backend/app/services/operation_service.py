@@ -1,6 +1,7 @@
 """
 Сервис для работы с операциями.
 """
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
@@ -12,6 +13,8 @@ from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
 from app.schemas.operation import OperationCreate
 from app.core.exceptions import NotFoundException
+
+logger = logging.getLogger(__name__)
 
 
 class OperationService:
@@ -76,6 +79,8 @@ class OperationService:
         telegram_username: Optional[str] = None,
     ) -> Operation:
         """Создать новую операцию с логированием в историю."""
+        logger.info("Creating operation: receipt_id=%s, type_id=%s, employee_id=%s",
+                     data.receipt_id, data.operation_type_id, data.employee_id)
         receipt = self.db.query(Receipt).get(data.receipt_id)
         if not receipt:
             raise NotFoundException("Квитанция", data.receipt_id)
@@ -114,4 +119,5 @@ class OperationService:
         
         self.db.flush()
         self.db.refresh(operation)
+        logger.info("Operation created: id=%s", operation.id)
         return operation

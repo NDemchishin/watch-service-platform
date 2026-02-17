@@ -1,6 +1,7 @@
 """
 Сервис для работы с историей событий.
 """
+import logging
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from sqlalchemy import desc
 
 from app.models.history import HistoryEvent
 from app.schemas.history import HistoryEventCreate
+
+logger = logging.getLogger(__name__)
 
 
 class HistoryService:
@@ -57,6 +60,7 @@ class HistoryService:
     
     def create(self, data: HistoryEventCreate) -> HistoryEvent:
         """Создать новое событие истории."""
+        logger.info("Creating history event: receipt_id=%s, type=%s", data.receipt_id, data.event_type)
         event = HistoryEvent(
             receipt_id=data.receipt_id,
             event_type=data.event_type,
