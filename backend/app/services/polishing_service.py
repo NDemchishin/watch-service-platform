@@ -31,9 +31,14 @@ class PolishingService:
             .first()
         )
     
-    def get_in_progress(self, skip: int = 0, limit: int = 100) -> list[PolishingDetails]:
-        """Получить список часов в полировке (не возвращены)."""
-        return (
+    def get_in_progress(self, skip: int = 0, limit: int = 100) -> tuple[list[PolishingDetails], int]:
+        """Получить список часов в полировке (не возвращены) с общим количеством."""
+        total = (
+            self.db.query(func.count(PolishingDetails.receipt_id))
+            .filter(PolishingDetails.returned_at.is_(None))
+            .scalar()
+        )
+        items = (
             self.db.query(PolishingDetails)
             .options(joinedload(PolishingDetails.polisher))
             .filter(PolishingDetails.returned_at.is_(None))
@@ -42,15 +47,21 @@ class PolishingService:
             .limit(limit)
             .all()
         )
+        return items, total
     
     def get_by_polisher(
         self,
         polisher_id: int,
         skip: int = 0,
         limit: int = 100,
-    ) -> list[PolishingDetails]:
-        """Получить все записи полировки по полировщику."""
-        return (
+    ) -> tuple[list[PolishingDetails], int]:
+        """Получить все записи полировки по полировщику с общим количеством."""
+        total = (
+            self.db.query(func.count(PolishingDetails.receipt_id))
+            .filter(PolishingDetails.polisher_id == polisher_id)
+            .scalar()
+        )
+        items = (
             self.db.query(PolishingDetails)
             .filter(PolishingDetails.polisher_id == polisher_id)
             .order_by(desc(PolishingDetails.sent_at))
@@ -58,6 +69,7 @@ class PolishingService:
             .limit(limit)
             .all()
         )
+        return items, total
     
     def create(
         self,

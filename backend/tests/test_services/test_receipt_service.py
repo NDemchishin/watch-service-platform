@@ -51,8 +51,9 @@ class TestReceiptService:
         service = ReceiptService(db_session)
         service.create(ReceiptCreate(receipt_number="R-001"))
         service.create(ReceiptCreate(receipt_number="R-002"))
-        all_receipts = service.get_all()
+        all_receipts, total = service.get_all()
         assert len(all_receipts) == 2
+        assert total == 2
 
     def test_update_deadline(self, db_session):
         service = ReceiptService(db_session)

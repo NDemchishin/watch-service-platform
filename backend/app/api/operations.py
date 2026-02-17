@@ -59,11 +59,13 @@ def list_operations(
 ):
     """Получить список всех операций."""
     service = OperationService(db)
-    operations = service.get_all(skip=skip, limit=limit)
+    items, total = service.get_all(skip=skip, limit=limit)
 
     return OperationListResponse(
-        items=[OperationResponse.model_validate(op) for op in operations],
-        total=len(operations),
+        items=[OperationResponse.model_validate(op) for op in items],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 

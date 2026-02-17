@@ -59,11 +59,13 @@ def list_returns(
 ):
     """Получить список всех возвратов."""
     service = ReturnService(db)
-    returns = service.get_all(skip=skip, limit=limit)
+    items, total = service.get_all(skip=skip, limit=limit)
 
     return ReturnListResponse(
-        items=[ReturnResponse.model_validate(r) for r in returns],
-        total=len(returns),
+        items=[ReturnResponse.model_validate(r) for r in items],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 

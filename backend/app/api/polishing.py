@@ -32,11 +32,13 @@ def list_in_progress(
 ):
     """Получить список часов в полировке (не возвращены)."""
     service = PolishingService(db)
-    items = service.get_in_progress(skip=skip, limit=limit)
-    
+    items, total = service.get_in_progress(skip=skip, limit=limit)
+
     return PolishingDetailsListResponse(
         items=[PolishingDetailsResponse.model_validate(item) for item in items],
-        total=len(items),
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 
@@ -64,11 +66,13 @@ def get_polishing_by_polisher(
 ):
     """Получить все записи полировки по полировщику."""
     service = PolishingService(db)
-    items = service.get_by_polisher(polisher_id, skip=skip, limit=limit)
-    
+    items, total = service.get_by_polisher(polisher_id, skip=skip, limit=limit)
+
     return PolishingDetailsListResponse(
         items=[PolishingDetailsResponse.model_validate(item) for item in items],
-        total=len(items),
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 

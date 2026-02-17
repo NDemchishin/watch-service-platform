@@ -55,6 +55,8 @@ class OperationListResponse(BaseModel):
     """Схема списка операций."""
     items: list[OperationResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # Обновляем forward reference

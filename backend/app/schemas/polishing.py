@@ -43,6 +43,8 @@ class PolishingDetailsListResponse(BaseModel):
     """Схема списка записей о полировке."""
     items: list[PolishingDetailsResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 class PolishingStatsResponse(BaseModel):

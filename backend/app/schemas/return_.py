@@ -72,6 +72,8 @@ class ReturnListResponse(BaseModel):
     """Схема списка возвратов."""
     items: list[ReturnResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 # Обновляем forward reference

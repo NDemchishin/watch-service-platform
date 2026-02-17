@@ -57,6 +57,8 @@ class ReceiptListResponse(BaseModel):
     """Схема списка квитанций."""
     items: list[ReceiptResponse]
     total: int
+    skip: int = 0
+    limit: int = 100
 
 
 class ReceiptWithHistoryResponse(ReceiptResponse):

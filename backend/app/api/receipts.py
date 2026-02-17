@@ -38,11 +38,13 @@ def list_receipts(
 ):
     """Получить список квитанций."""
     service = ReceiptService(db)
-    receipts = service.get_all(skip=skip, limit=limit)
-    
+    items, total = service.get_all(skip=skip, limit=limit)
+
     return ReceiptListResponse(
-        items=[ReceiptResponse.model_validate(r) for r in receipts],
-        total=len(receipts),
+        items=[ReceiptResponse.model_validate(r) for r in items],
+        total=total,
+        skip=skip,
+        limit=limit,
     )
 
 

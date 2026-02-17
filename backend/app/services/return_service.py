@@ -4,7 +4,7 @@
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from app.models.return_ import Return, ReturnReason, ReturnReasonLink
 from app.models.employee import Employee
@@ -32,9 +32,10 @@ class ReturnService:
             .first()
         )
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[Return]:
-        """Получить список всех возвратов с пагинацией."""
-        return (
+    def get_all(self, skip: int = 0, limit: int = 100) -> tuple[list[Return], int]:
+        """Получить список всех возвратов с пагинацией и общим количеством."""
+        total = self.db.query(func.count(Return.id)).scalar()
+        items = (
             self.db.query(Return)
             .options(
                 joinedload(Return.reasons).joinedload(ReturnReasonLink.reason),
@@ -45,6 +46,7 @@ class ReturnService:
             .limit(limit)
             .all()
         )
+        return items, total
 
     def get_by_receipt(self, receipt_id: int) -> list[Return]:
         """Получить все возвраты по квитанции."""

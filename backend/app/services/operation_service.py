@@ -4,7 +4,7 @@
 from typing import Optional
 
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import desc
+from sqlalchemy import desc, func
 
 from app.models.operation import Operation, OperationType
 from app.models.employee import Employee
@@ -32,9 +32,10 @@ class OperationService:
             .first()
         )
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[Operation]:
-        """Получить список всех операций с пагинацией."""
-        return (
+    def get_all(self, skip: int = 0, limit: int = 100) -> tuple[list[Operation], int]:
+        """Получить список всех операций с пагинацией и общим количеством."""
+        total = self.db.query(func.count(Operation.id)).scalar()
+        items = (
             self.db.query(Operation)
             .options(
                 joinedload(Operation.operation_type),
@@ -45,6 +46,7 @@ class OperationService:
             .limit(limit)
             .all()
         )
+        return items, total
 
     def get_by_receipt(self, receipt_id: int) -> list[Operation]:
         """Получить все операции по квитанции."""

@@ -6,7 +6,7 @@ from datetime import datetime
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import desc, exists, and_
+from sqlalchemy import desc, exists, and_, func
 
 from app.models.receipt import Receipt
 from app.models.history import HistoryEvent
@@ -29,15 +29,17 @@ class ReceiptService:
         """Получить квитанцию по номеру."""
         return self.db.query(Receipt).filter(Receipt.receipt_number == receipt_number).first()
     
-    def get_all(self, skip: int = 0, limit: int = 100) -> list[Receipt]:
-        """Получить список всех квитанций."""
-        return (
+    def get_all(self, skip: int = 0, limit: int = 100) -> tuple[list[Receipt], int]:
+        """Получить список всех квитанций с общим количеством."""
+        total = self.db.query(func.count(Receipt.id)).scalar()
+        items = (
             self.db.query(Receipt)
             .order_by(desc(Receipt.created_at))
             .offset(skip)
             .limit(limit)
             .all()
         )
+        return items, total
     
     def get_urgent(self) -> list[Receipt]:
         """
