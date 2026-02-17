@@ -20,6 +20,10 @@ class Settings:
     APP_TITLE: str = "Watch Service Platform"
     DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
 
+    # API Security
+    API_KEY: str = os.getenv("API_KEY", "")
+    TELEGRAM_WEBHOOK_SECRET: str = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
+
     # Telegram Bot
     TELEGRAM_BOT_TOKEN: str = os.getenv("TELEGRAM_BOT_TOKEN", "")
     TELEGRAM_BOT_WEBHOOK_URL: str = os.getenv("TELEGRAM_BOT_WEBHOOK_URL", "")

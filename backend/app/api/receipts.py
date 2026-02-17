@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.security import verify_api_key
 from app.schemas.receipt import (
     ReceiptCreate,
     ReceiptUpdate,
@@ -22,7 +23,11 @@ from app.services.receipt_service import ReceiptService
 from app.services.history_service import HistoryService
 from app.services.employee_service import EmployeeService
 
-router = APIRouter(prefix="/receipts", tags=["receipts"])
+router = APIRouter(
+    prefix="/receipts",
+    tags=["receipts"],
+    dependencies=[Depends(verify_api_key)],
+)
 
 
 @router.get("", response_model=ReceiptListResponse)

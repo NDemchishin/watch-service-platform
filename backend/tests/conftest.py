@@ -8,6 +8,8 @@ os.environ.pop("TELEGRAM_BOT_TOKEN", None)
 os.environ.pop("TELEGRAM_BOT_WEBHOOK_URL", None)
 os.environ["TELEGRAM_BOT_TOKEN"] = ""
 os.environ["TELEGRAM_BOT_WEBHOOK_URL"] = ""
+os.environ["API_KEY"] = "test-api-key"
+os.environ["TELEGRAM_WEBHOOK_SECRET"] = "test-webhook-secret"
 
 # Принудительно обнуляем config бота (мог быть уже загружен с реальным TOKEN)
 import telegram_bot.config
@@ -80,8 +82,8 @@ def seeded_db(db_session: Session) -> Session:
 
 
 @pytest.fixture
-def client(db_session: Session) -> TestClient:
-    """FastAPI TestClient с подменённой БД."""
+def client_no_auth(db_session: Session) -> TestClient:
+    """FastAPI TestClient БЕЗ API-ключа (для тестов безопасности)."""
     def override_get_db():
         try:
             yield db_session
@@ -95,8 +97,27 @@ def client(db_session: Session) -> TestClient:
 
 
 @pytest.fixture
+def client(db_session: Session) -> TestClient:
+    """FastAPI TestClient с подменённой БД и API-ключом."""
+    def override_get_db():
+        try:
+            yield db_session
+        finally:
+            pass
+
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    with TestClient(
+        fastapi_app,
+        raise_server_exceptions=False,
+        headers={"X-API-Key": "test-api-key"},
+    ) as c:
+        yield c
+    fastapi_app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def seeded_client(seeded_db: Session) -> TestClient:
-    """FastAPI TestClient с засеянными справочниками."""
+    """FastAPI TestClient с засеянными справочниками и API-ключом."""
     def override_get_db():
         try:
             yield seeded_db
@@ -104,7 +125,11 @@ def seeded_client(seeded_db: Session) -> TestClient:
             pass
 
     fastapi_app.dependency_overrides[get_db] = override_get_db
-    with TestClient(fastapi_app, raise_server_exceptions=False) as c:
+    with TestClient(
+        fastapi_app,
+        raise_server_exceptions=False,
+        headers={"X-API-Key": "test-api-key"},
+    ) as c:
         yield c
     fastapi_app.dependency_overrides.clear()
 
