@@ -82,3 +82,28 @@ def get_confirm_keyboard() -> InlineKeyboardMarkup:
             ]
         ]
     )
+
+
+def get_optional_input_keyboard(field: str, back_to: str) -> InlineKeyboardMarkup:
+    """Клавиатура для необязательного поля: Пропустить / Назад / В меню."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⏭ Пропустить", callback_data=f"skip:{field}")],
+            [
+                InlineKeyboardButton(text="⬅ Назад", callback_data=f"back:{back_to}"),
+                InlineKeyboardButton(text="🏠 В меню", callback_data="menu:main"),
+            ],
+        ]
+    )
+
+
+def get_confirmation_keyboard(action: str, item_id: str) -> InlineKeyboardMarkup:
+    """Клавиатура подтверждения действия с ID объекта."""
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(text="✅ Да", callback_data=f"confirm:{action}:{item_id}"),
+                InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_action"),
+            ]
+        ]
+    )
