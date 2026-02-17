@@ -1,8 +1,6 @@
 """
 API endpoints для управления операциями.
 """
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -99,15 +97,13 @@ def get_operation(operation_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=OperationResponse, status_code=status.HTTP_201_CREATED)
 def create_operation(
     data: OperationCreate,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Создать новую операцию."""
     service = OperationService(db)
     operation = service.create(
         data=data,
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
     return OperationResponse.model_validate(operation)

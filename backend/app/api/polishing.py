@@ -1,9 +1,6 @@
 """
 API endpoints для управления полировкой.
 """
-from typing import Optional
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -11,6 +8,7 @@ from app.core.database import get_db
 from app.core.security import verify_api_key
 from app.schemas.polishing import (
     PolishingDetailsCreate,
+    PolishingDetailsUpdate,
     PolishingDetailsResponse,
     PolishingDetailsListResponse,
     PolishingStatsResponse,
@@ -88,50 +86,46 @@ def get_polisher_stats(polisher_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=PolishingDetailsResponse, status_code=status.HTTP_201_CREATED)
 def create_polishing(
     data: PolishingDetailsCreate,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Создать запись о передаче в полировку."""
     service = PolishingService(db)
-    
+
     try:
         polishing = service.create(
             data=data,
-            telegram_id=telegram_id,
-            telegram_username=telegram_username,
+            telegram_id=data.telegram_id,
+            telegram_username=data.telegram_username,
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-    
+
     return PolishingDetailsResponse.model_validate(polishing)
 
 
 @router.post("/receipt/{receipt_id}/return", response_model=PolishingDetailsResponse)
 def mark_polishing_returned(
     receipt_id: int,
-    returned_at: Optional[datetime] = None,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
+    data: PolishingDetailsUpdate,
     db: Session = Depends(get_db),
 ):
     """Отметить возврат из полировки."""
     service = PolishingService(db)
-    
+
     try:
         polishing = service.mark_returned(
             receipt_id=receipt_id,
-            returned_at=returned_at,
-            telegram_id=telegram_id,
-            telegram_username=telegram_username,
+            returned_at=data.returned_at,
+            telegram_id=data.telegram_id,
+            telegram_username=data.telegram_username,
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-    
+
     return PolishingDetailsResponse.model_validate(polishing)

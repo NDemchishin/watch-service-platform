@@ -57,6 +57,8 @@ class ReturnBase(BaseModel):
 class ReturnCreate(ReturnBase):
     """Схема создания возврата."""
     reasons: list[ReturnReasonLinkCreate]
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class ReturnResponse(ReturnBase):

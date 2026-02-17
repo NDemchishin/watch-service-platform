@@ -18,7 +18,8 @@ class ReceiptBase(BaseModel):
 
 class ReceiptCreate(ReceiptBase):
     """Схема создания квитанции."""
-    pass
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class ReceiptGetOrCreate(BaseModel):
@@ -41,6 +42,18 @@ class AssignMasterRequest(BaseModel):
     master_id: int
     is_urgent: bool = False
     deadline: Optional[datetime] = None
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
+
+
+class OtkPassRequest(BaseModel):
+    """Схема для отметки прохождения ОТК."""
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
+
+
+class InitiateReturnRequest(BaseModel):
+    """Схема для инициации возврата."""
     telegram_id: Optional[int] = None
     telegram_username: Optional[str] = None
 

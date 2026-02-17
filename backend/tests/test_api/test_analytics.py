@@ -187,7 +187,7 @@ class TestPolishingQuality:
         polisher = create_employee(seeded_client, "Полировщик")
         _create_polishing(seeded_client, receipt["id"], polisher["id"])
         # Помечаем как возвращённую из полировки
-        seeded_client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
+        seeded_client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
 
         # Создаём возврат с причиной "полировка" и виновным = полировщик
         _create_return(
@@ -230,7 +230,7 @@ class TestPolishingWorkload:
         receipt = create_receipt(seeded_client, "R-001")
         polisher = create_employee(seeded_client, "Полировщик")
         _create_polishing(seeded_client, receipt["id"], polisher["id"])
-        seeded_client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
+        seeded_client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
 
         resp = seeded_client.get("/api/v1/analytics/polishing/workload")
         data = resp.json()

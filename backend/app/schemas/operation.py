@@ -38,7 +38,8 @@ class OperationBase(BaseModel):
 
 class OperationCreate(OperationBase):
     """Схема создания операции."""
-    pass
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class OperationResponse(OperationBase):

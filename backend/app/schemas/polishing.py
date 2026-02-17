@@ -22,12 +22,15 @@ class PolishingDetailsBase(BaseModel):
 
 class PolishingDetailsCreate(PolishingDetailsBase):
     """Схема создания записи о полировке."""
-    pass
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class PolishingDetailsUpdate(BaseModel):
     """Схема обновления записи о полировке (возврат)."""
-    returned_at: datetime
+    returned_at: Optional[datetime] = None
+    telegram_id: Optional[int] = None
+    telegram_username: Optional[str] = None
 
 
 class PolishingDetailsResponse(PolishingDetailsBase):

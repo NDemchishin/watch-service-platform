@@ -125,7 +125,7 @@ class TestUrgent:
             json={"current_deadline": "2099-12-31T23:59:00"},
         )
         # Отмечаем прохождение ОТК
-        client.post(f"/api/v1/receipts/{receipt['id']}/otk-pass")
+        client.post(f"/api/v1/receipts/{receipt['id']}/otk-pass", json={})
         resp = client.get("/api/v1/receipts/urgent")
         assert resp.status_code == 200
         assert resp.json()["total"] == 0
@@ -168,16 +168,16 @@ class TestOTKAndReturn:
 
     def test_otk_pass(self, client):
         receipt = create_receipt(client, "R-001")
-        resp = client.post(f"/api/v1/receipts/{receipt['id']}/otk-pass")
+        resp = client.post(f"/api/v1/receipts/{receipt['id']}/otk-pass", json={})
         assert resp.status_code == 200
 
     def test_otk_pass_not_found(self, client):
-        resp = client.post("/api/v1/receipts/9999/otk-pass")
+        resp = client.post("/api/v1/receipts/9999/otk-pass", json={})
         assert resp.status_code == 404
 
     def test_initiate_return(self, client):
         receipt = create_receipt(client, "R-001")
-        resp = client.post(f"/api/v1/receipts/{receipt['id']}/initiate-return")
+        resp = client.post(f"/api/v1/receipts/{receipt['id']}/initiate-return", json={})
         assert resp.status_code == 200
 
     def test_receipt_with_history(self, client):

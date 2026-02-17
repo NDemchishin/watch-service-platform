@@ -1,8 +1,6 @@
 """
 API endpoints для управления возвратами.
 """
-from typing import Optional
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -99,15 +97,13 @@ def get_return(return_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=ReturnResponse, status_code=status.HTTP_201_CREATED)
 def create_return(
     data: ReturnCreate,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Создать новый возврат."""
     service = ReturnService(db)
     return_record = service.create(
         data=data,
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
     return ReturnResponse.model_validate(return_record)

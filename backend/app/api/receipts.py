@@ -1,9 +1,6 @@
 """
 API endpoints для управления квитанциями.
 """
-from typing import Optional
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
@@ -17,6 +14,8 @@ from app.schemas.receipt import (
     ReceiptWithHistoryResponse,
     ReceiptGetOrCreate,
     AssignMasterRequest,
+    OtkPassRequest,
+    InitiateReturnRequest,
 )
 from app.schemas.history import HistoryEventResponse, HistoryEventCreate
 from app.services.receipt_service import ReceiptService
@@ -148,25 +147,23 @@ def get_receipt_with_history(receipt_id: int, db: Session = Depends(get_db)):
 @router.post("", response_model=ReceiptResponse, status_code=status.HTTP_201_CREATED)
 def create_receipt(
     data: ReceiptCreate,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Создать новую квитанцию."""
     service = ReceiptService(db)
-    
+
     try:
         receipt = service.create(
             data=data,
-            telegram_id=telegram_id,
-            telegram_username=telegram_username,
+            telegram_id=data.telegram_id,
+            telegram_username=data.telegram_username,
         )
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e),
         )
-    
+
     return ReceiptResponse.model_validate(receipt)
 
 
@@ -253,8 +250,7 @@ def assign_to_master(
 @router.post("/{receipt_id}/otk-pass", response_model=ReceiptResponse)
 def otk_pass(
     receipt_id: int,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
+    data: OtkPassRequest,
     db: Session = Depends(get_db),
 ):
     """
@@ -263,32 +259,31 @@ def otk_pass(
     """
     receipt_service = ReceiptService(db)
     history_service = HistoryService(db)
-    
+
     receipt = receipt_service.get_by_id(receipt_id)
     if not receipt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Квитанция с ID {receipt_id} не найдена",
         )
-    
+
     # Создаём событие истории
     history_data = HistoryEventCreate(
         receipt_id=receipt_id,
         event_type="passed_otk",
         payload={},
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
     history_service.create(history_data)
-    
+
     return ReceiptResponse.model_validate(receipt)
 
 
 @router.post("/{receipt_id}/initiate-return", response_model=ReceiptResponse)
 def initiate_return(
     receipt_id: int,
-    telegram_id: Optional[int] = None,
-    telegram_username: Optional[str] = None,
+    data: InitiateReturnRequest,
     db: Session = Depends(get_db),
 ):
     """
@@ -298,14 +293,14 @@ def initiate_return(
     """
     receipt_service = ReceiptService(db)
     history_service = HistoryService(db)
-    
+
     receipt = receipt_service.get_by_id(receipt_id)
     if not receipt:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Квитанция с ID {receipt_id} не найдена",
         )
-    
+
     # Создаём событие истории (заглушка)
     history_data = HistoryEventCreate(
         receipt_id=receipt_id,
@@ -313,9 +308,9 @@ def initiate_return(
         payload={
             "note": "Sprint 3 - заглушка. Полная логика возвратов в Sprint 4."
         },
-        telegram_id=telegram_id,
-        telegram_username=telegram_username,
+        telegram_id=data.telegram_id,
+        telegram_username=data.telegram_username,
     )
     history_service.create(history_data)
-    
+
     return ReceiptResponse.model_validate(receipt)

@@ -76,12 +76,12 @@ class TestPolishingReturn:
         polisher = create_employee(client, "Полировщик")
         _create_polishing(client, receipt["id"], polisher["id"])
 
-        resp = client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
+        resp = client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
         assert resp.status_code == 200
         assert resp.json()["returned_at"] is not None
 
     def test_return_not_found(self, client):
-        resp = client.post("/api/v1/polishing/receipt/9999/return")
+        resp = client.post("/api/v1/polishing/receipt/9999/return", json={})
         assert resp.status_code == 404
 
     def test_double_return(self, client):
@@ -89,8 +89,8 @@ class TestPolishingReturn:
         polisher = create_employee(client, "Полировщик")
         _create_polishing(client, receipt["id"], polisher["id"])
 
-        client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
-        resp = client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
+        client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
+        resp = client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
         assert resp.status_code == 400
 
     def test_returned_not_in_progress(self, client):
@@ -98,7 +98,7 @@ class TestPolishingReturn:
         polisher = create_employee(client, "Полировщик")
         _create_polishing(client, receipt["id"], polisher["id"])
 
-        client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return")
+        client.post(f"/api/v1/polishing/receipt/{receipt['id']}/return", json={})
 
         resp = client.get("/api/v1/polishing/in-progress")
         assert resp.status_code == 200
