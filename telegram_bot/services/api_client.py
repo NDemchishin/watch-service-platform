@@ -37,6 +37,8 @@ class APIClient:
     async def _get_client(self) -> httpx.AsyncClient:
         """Получает или создаёт HTTP клиент."""
         if self._client is None or self._client.is_closed:
+            if not bot_config.API_KEY:
+                logger.error("API_KEY is empty! Set API_KEY environment variable.")
             self._client = httpx.AsyncClient(
                 base_url=self.base_url,
                 timeout=30.0,

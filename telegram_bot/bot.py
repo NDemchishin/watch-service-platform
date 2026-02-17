@@ -106,6 +106,7 @@ async def start_polling():
 # Глобальные объекты для webhook
 _bot: Bot = None
 _dp: Dispatcher = None
+_scheduler_started: bool = False
 
 
 def get_bot() -> Bot:
@@ -130,6 +131,8 @@ def get_dispatcher() -> Dispatcher:
 
 async def setup_webhook() -> None:
     """Настраивает webhook для бота."""
+    global _scheduler_started
+
     if not bot_config.WEBHOOK_URL:
         logger.warning("WEBHOOK_URL not set, skipping webhook setup")
         return
@@ -145,9 +148,13 @@ async def setup_webhook() -> None:
     await bot.set_webhook(url=webhook_url)
     logger.info(f"Webhook set to: {webhook_url}")
 
-    # Запускаем фоновый scheduler уведомлений
-    asyncio.create_task(run_notification_scheduler(bot))
-    logger.info("Notification scheduler started as background task")
+    # Запускаем фоновый scheduler уведомлений (только один раз)
+    if not _scheduler_started:
+        _scheduler_started = True
+        asyncio.create_task(run_notification_scheduler(bot))
+        logger.info("Notification scheduler started as background task")
+    else:
+        logger.info("Notification scheduler already running, skipping")
 
 
 async def process_update(update_data: dict) -> None:
