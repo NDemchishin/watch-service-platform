@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 
 from telegram_bot.bot import setup_webhook, process_update, get_bot, get_dispatcher
 from telegram_bot.config import bot_config
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/telegram", tags=["telegram"])
@@ -85,6 +86,11 @@ async def telegram_webhook(request: Request) -> JSONResponse:
     """
     global _bot_initialized
     
+    # Verify webhook secret
+    secret = request.headers.get("X-Telegram-Bot-Api-Secret-Token")
+    if secret != settings.TELEGRAM_WEBHOOK_SECRET:
+        raise HTTPException(status_code=403, detail="Invalid webhook secret")
+
     try:
         # Получаем данные от Telegram
         update_data = await request.json()
