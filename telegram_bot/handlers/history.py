@@ -126,8 +126,14 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} while fetching history")
+        detail = ""
+        try:
+            detail = e.response.json().get("detail", "")
+        except Exception:
+            pass
+        error_text = f"❌ {detail}" if detail else "❌ Ошибка сервера при получении истории."
         await message.answer(
-            text="❌ Ошибка сервера при получении истории.\n\nПопробуйте снова:",
+            text=f"{error_text}\n\nПопробуйте снова:",
             reply_markup=get_back_keyboard("main")
         )
     except Exception as e:
@@ -185,12 +191,12 @@ async def show_history(message_or_callback, state, receipt, history) -> None:
             message_text += f"\n... и ещё {len(history) - 10} событий"
     
     # Проверяем тип объекта для ответа
-    if hasattr(message_or_callback, 'edit_text'):
+    if isinstance(message_or_callback, CallbackQuery):
         await message_or_callback.message.edit_text(
             text=message_text,
             reply_markup=keyboard
         )
-        await message_or_callback.state.set_state(History.show_history)
+        await state.set_state(History.show_history)
         await message_or_callback.answer()
     else:
         await message_or_callback.answer(

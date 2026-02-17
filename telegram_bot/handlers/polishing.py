@@ -95,9 +95,14 @@ async def process_receipt_number(message: Message, state: FSMContext) -> None:
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} for receipt {receipt_number}")
+        detail = ""
+        try:
+            detail = e.response.json().get("detail", "")
+        except Exception:
+            pass
+        error_text = f"❌ {detail}" if detail else f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}."
         await message.answer(
-            text=f"❌ Ошибка сервера при работе с квитанцией №{receipt_number}.\n\n"
-                 f"Попробуйте снова:",
+            text=f"{error_text}\n\nПопробуйте снова:",
             reply_markup=get_back_home_keyboard("main")
         )
     except Exception as e:
@@ -264,8 +269,14 @@ async def confirm_polishing(callback: CallbackQuery, state: FSMContext) -> None:
         )
     except httpx.HTTPStatusError as e:
         logger.exception(f"HTTP error {e.response.status_code} while creating polishing")
+        detail = ""
+        try:
+            detail = e.response.json().get("detail", "")
+        except Exception:
+            pass
+        error_text = f"❌ {detail}" if detail else "❌ Ошибка сервера при передаче в полировку."
         await callback.message.edit_text(
-            text="❌ Ошибка сервера при передаче в полировку.",
+            text=error_text,
             reply_markup=get_back_home_keyboard("main")
         )
     except Exception as e:
